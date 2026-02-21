@@ -1,0 +1,132 @@
+Create a stock research and management website using HTML, CSS, JavaScript, and Node.js (Express).
+
+GOAL:
+A fast, clean stock research website where I can:
+- Manage unlimited stocks
+- Create multiple shortlists
+- View fundamental data
+- Calculate risk–reward
+- Open TradingView charts via external links (NO embedded charts)
+
+--------------------------------------------------
+1. MASTER STOCK LIST (UNLIMITED)
+--------------------------------------------------
+- Allow adding unlimited stock symbols (comma-separated).
+  Example: GESHIP, BALKRISIND, ADANIENSOL
+- Symbols may contain A–Z, 0–9, hyphen (-), ampersand (&).
+- Save all stocks into a main list called “All Stocks”.
+- Persist data using localStorage or backend.
+- No limit on number of stocks.
+
+--------------------------------------------------
+2. SHORTLIST / WATCHLIST SYSTEM
+--------------------------------------------------
+- Allow creating multiple custom-named lists (Favorites, Future, Swing, Long Term).
+- From the main stock list:
+  - Right-click on a stock
+  - Show option: “Add to Shortlist”
+  - Allow creating a new list or selecting an existing list
+- Each shortlist contains only chosen stocks.
+- Clicking a list shows ONLY stocks inside that list.
+- Allow removing stocks from lists.
+- Persist all lists.
+
+--------------------------------------------------
+3. STOCK CLICK BEHAVIOR (NO EMBEDDED CHART)
+--------------------------------------------------
+- Clicking a stock opens TradingView in a new tab.
+- Use correct TradingView symbol format: NSE:SYMBOL
+- Example:
+  https://www.tradingview.com/chart/?symbol=NSE:GESHIP
+- Do NOT embed TradingView charts inside the website.
+
+--------------------------------------------------
+4. FUNDAMENTAL DATA (DISPLAY BELOW STOCK DETAILS)
+--------------------------------------------------
+Display Screener-style fundamentals using JSON / sample data.
+
+A. SHAREHOLDING PATTERN
+- Promoter
+- FII
+- DII
+- Public
+- Display in table format
+- Hide / Show option
+
+B. QUARTERLY RESULTS (WIDE TABLE)
+- Columns: multiple quarters (example: Dec 2022 → Dec 2025)
+- Rows:
+  Sales
+  Expenses
+  Operating Profit
+  OPM %
+  Other Income
+  Interest
+  Depreciation
+  Profit Before Tax
+  Tax %
+  Net Profit
+  EPS
+- Horizontal scroll
+- Hide / Show option
+
+C. PROFIT & LOSS STATEMENT
+- Yearly / Quarterly format similar to Screener.in
+- Clean numeric formatting
+- Hide / Show option
+
+--------------------------------------------------
+5. RISK–REWARD CALCULATOR
+--------------------------------------------------
+- Inputs:
+  Capital (example: 50000)
+  Risk % (example: 1)
+  Entry Price
+  Stop Loss Price
+  Target Price (optional)
+
+- Calculations:
+  Risk Amount = Capital × (Risk % / 100)
+  Stop Loss Points = Entry − Stop Loss
+  Number of Shares = round(Risk Amount / Stop Loss Points)
+  Capital Required = Entry × Number of Shares
+  Risk–Reward Ratio (example: 1:2, 1:3)
+
+- Display all results clearly.
+- Allow hide/show of this section.
+
+--------------------------------------------------
+6. UI / UX
+--------------------------------------------------
+- Clean dark theme (TradingView-like).
+- Sidebar for lists and stocks.
+- Main area for stock details, fundamentals, and calculator.
+- Right-click context menu on stocks.
+- Fast, responsive, mobile-friendly.
+- Well-commented, clean code.
+
+--------------------------------------------------
+7. IMPORTANT RULES
+--------------------------------------------------
+- NO paid APIs.
+- NO scraping live websites.
+- Fundamentals can be JSON/sample data and extendable later.
+- NO TradingView chart embedding.
+- ONLY TradingView external links.
+- Unlimited stocks and lists.
+- Accept all valid NSE symbols.
+
+DELIVER:
+A fully working, clean, extendable website with clear comments.
+✅ This version now:
+✔ Includes fundamentals
+
+✔ Keeps TradingView external links only
+
+✔ Supports unlimited stocks + shortlists
+
+✔ Has professional risk–reward logic
+
+✔ Is legally safe & scalable
+
+
