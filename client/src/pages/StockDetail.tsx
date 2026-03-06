@@ -343,7 +343,7 @@ export default function StockDetail() {
 
             {/* Fundamentals */}
             <div className="space-y-6 overflow-hidden">
-              <FundamentalsViewer data={stock.fundamentals} />
+              <FundamentalsViewer data={stock.fundamentals} stockId={stock.id} symbol={stock.symbol} />
             </div>
 
             {/* Risk Calculator */}
