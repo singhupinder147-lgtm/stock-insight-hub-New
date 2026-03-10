@@ -182,7 +182,7 @@ export default function StockDetail() {
         <Sidebar />
       </div>
       
-      <div className="flex-1 flex overflow-hidden md:ml-64">
+      <div className="flex-1 flex overflow-hidden md:ml-64 md:mr-80">
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth">
           <div className="max-w-4xl mx-auto space-y-6 md:space-y-8 animate-in">
@@ -356,8 +356,7 @@ export default function StockDetail() {
           </div>
         </main>
 
-        {/* Desktop Right Sidebar */}
-        <aside className="hidden md:flex w-80 border-l border-border bg-card flex-col">
+        {/* Desktop Right Sidebar */}<aside className="hidden md:flex w-80 border-l border-border bg-card flex-col fixed right-0 top-0 h-screen z-10">
           <StockListSidebar 
             search={search}
             setSearch={setSearch}
