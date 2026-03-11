@@ -1,4 +1,3 @@
-
 import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
@@ -27,11 +26,9 @@ export async function registerRoutes(
   app.get(api.stocks.get.path, async (req, res) => {
     const id = Number(req.params.id);
     const stock = await storage.getStock(id);
-    
     if (!stock) {
       return res.status(404).json({ message: 'Stock not found' });
     }
-
     const fund = await storage.getFundamentals(id);
     res.json({ ...stock, fundamentals: fund || null });
   });
@@ -114,11 +111,15 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // ✅ NEW - Clear all stocks from a list
+  app.delete("/api/lists/:id/items/all", async (req, res) => {
+    const listId = Number(req.params.id);
+    await storage.clearListItems(listId);
+    res.status(204).send();
+  });
+
   app.get("/api/news", async (req, res) => {
-    const query = req.query.q as string || "Indian stock market trading news";
     try {
-      // In a real app we'd use a news API, here we mock it but could use web_search if available
-      // Since we want "latest news", we provide mock news that looks fresh
       const news = [
         { id: 1, title: "Market Update: Nifty hits record high as banks rally", source: "TradeNews", time: "2h ago", url: "#" },
         { id: 2, title: "Fed meeting outcome: What traders need to know today", source: "GlobalFinance", time: "4h ago", url: "#" },
@@ -139,8 +140,6 @@ export async function registerRoutes(
     const id = Number(req.params.id);
     const fund = await storage.getFundamentals(id);
     if (!fund) {
-      // Return a 200 with empty fundamentals if it doesn't exist yet
-      // This prevents the frontend from showing an error if it expects data
       return res.json(null);
     }
     res.json(fund);
@@ -152,20 +151,13 @@ export async function registerRoutes(
 async function seedDatabase() {
   const existingStocks = await storage.getAllStocks();
   if (existingStocks.length > 0) {
-    // Check if we need to seed fundamentals for existing stocks
     const reliance = existingStocks.find(s => s.symbol === "RELIANCE");
     if (reliance) {
       const fund = await storage.getFundamentals(reliance.id);
       if (!fund) {
-        console.log("Seeding fundamentals for RELIANCE...");
         await storage.createFundamentals({
           stockId: reliance.id,
-          shareholding: {
-            promoter: 50.3,
-            fii: 22.1,
-            dii: 15.5,
-            public: 12.1
-          },
+          shareholding: { promoter: 50.3, fii: 22.1, dii: 15.5, public: 12.1 },
           quarterlyResults: [
             { quarter: "Dec 2023", sales: 225000, profit: 17000 },
             { quarter: "Mar 2024", sales: 235000, profit: 18000 },
@@ -189,16 +181,12 @@ async function seedDatabase() {
   }
 
   console.log("Seeding database...");
-
-  // 1. Create Stocks
   const initialSymbols = ["RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK", "SBIN", "BHARTIARTL", "ITC", "KOTAKBANK", "LICI"];
   await storage.bulkCreateStocks(initialSymbols);
 
-  // 2. Create Lists
   const favorites = await storage.createList({ name: "Favorites", description: "My top picks" });
   const swing = await storage.createList({ name: "Swing Trading", description: "Short term opportunities" });
 
-  // 3. Add items to lists
   const stocks = await storage.getAllStocks();
   const reliance = stocks.find(s => s.symbol === "RELIANCE");
   const tcs = stocks.find(s => s.symbol === "TCS");
@@ -209,16 +197,10 @@ async function seedDatabase() {
     await storage.addListItem({ listId: swing.id, stockId: reliance.id });
   }
 
-  // 4. Create Fundamentals for a few stocks
   if (reliance) {
     await storage.createFundamentals({
       stockId: reliance.id,
-      shareholding: {
-        promoter: 50.3,
-        fii: 22.1,
-        dii: 15.5,
-        public: 12.1
-      },
+      shareholding: { promoter: 50.3, fii: 22.1, dii: 15.5, public: 12.1 },
       quarterlyResults: [
         { quarter: "Dec 2023", sales: 225000, profit: 17000 },
         { quarter: "Mar 2024", sales: 235000, profit: 18000 },
