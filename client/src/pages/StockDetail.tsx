@@ -15,7 +15,8 @@ import {
   Search,
   Newspaper,
   X,
-  Menu
+  Menu,
+  Trash
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -31,8 +32,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 export default function StockDetail() {
@@ -59,6 +59,18 @@ export default function StockDetail() {
     }
   });
 
+  // ✅ NEW - Clear all stocks from list
+  const clearList = useMutation({
+    mutationFn: async () => {
+      await fetch(`/api/lists/${currentListId}/items/all`, { method: "DELETE" });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [`/api/lists/${currentListId}/items`] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/lists"] });
+      setLocation(`/lists/${currentListId}`);
+    }
+  });
+
   const handleAddStocks = async () => {
     const symbols = newSymbols.split(/[\s,]+/).filter(s => s.trim().length > 0);
     if (symbols.length === 0) return;
@@ -71,7 +83,6 @@ export default function StockDetail() {
           const newlyAdded = allStocks.filter((s: any) => 
             symbols.map(sym => sym.toUpperCase()).includes(s.symbol)
           );
-          
           for (const s of newlyAdded) {
             await addListItem.mutateAsync({ stockId: s.id });
           }
@@ -84,7 +95,6 @@ export default function StockDetail() {
   const { data: stock, isLoading } = useStock(stockId);
   const { data: allStocks } = useStocks();
 
-  // Mock Price State
   const [price, setPrice] = useState<number | null>(null);
   const [change, setChange] = useState<number | null>(null);
 
@@ -93,7 +103,6 @@ export default function StockDetail() {
       const basePrice = 1000 + (stock.id * 50);
       setPrice(basePrice);
       setChange(0);
-
       const interval = setInterval(() => {
         setPrice(prev => {
           if (!prev) return basePrice;
@@ -103,7 +112,6 @@ export default function StockDetail() {
           return nextPrice;
         });
       }, 60000);
-
       return () => clearInterval(interval);
     }
   }, [stock]);
@@ -219,6 +227,7 @@ export default function StockDetail() {
                     stockId={stockId}
                     setLocation={setLocation}
                     removeListItem={removeListItem}
+                    clearList={clearList}
                     onClose={() => setIsRightSidebarOpen(false)}
                   />
                 </SheetContent>
@@ -356,7 +365,8 @@ export default function StockDetail() {
           </div>
         </main>
 
-        {/* Desktop Right Sidebar */}<aside className="hidden md:flex w-80 border-l border-border bg-card flex-col fixed right-0 top-0 h-screen z-10">
+        {/* Desktop Right Sidebar */}
+        <aside className="hidden md:flex w-80 border-l border-border bg-card flex-col fixed right-0 top-0 h-screen z-10">
           <StockListSidebar 
             search={search}
             setSearch={setSearch}
@@ -369,6 +379,7 @@ export default function StockDetail() {
             stockId={stockId}
             setLocation={setLocation}
             removeListItem={removeListItem}
+            clearList={clearList}
           />
         </aside>
       </div>
@@ -388,6 +399,7 @@ interface StockListSidebarProps {
   stockId: number;
   setLocation: (v: string) => void;
   removeListItem: any;
+  clearList: any;
   onClose?: () => void;
 }
 
@@ -395,7 +407,7 @@ function StockListSidebar({
   search, setSearch, newSymbols, setNewSymbols, 
   handleAddStocks, isBulkPending, filteredStocks, 
   currentListId, stockId, setLocation, removeListItem,
-  onClose
+  clearList, onClose
 }: StockListSidebarProps) {
   return (
     <>
@@ -428,6 +440,24 @@ function StockListSidebar({
             <Plus className="h-4 w-4" />
           </Button>
         </div>
+
+        {/* ✅ NEW - Clear All Button - only shows when inside a list */}
+        {currentListId && (
+          <Button
+            variant="destructive"
+            size="sm"
+            className="w-full gap-2"
+            onClick={() => {
+              if (confirm("Remove ALL stocks from this list? This will NOT delete the stocks from other lists.")) {
+                clearList.mutate();
+              }
+            }}
+            disabled={clearList.isPending}
+          >
+            <Trash className="h-4 w-4" />
+            {clearList.isPending ? "Clearing..." : "Clear All Stocks"}
+          </Button>
+        )}
       </div>
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-1">
