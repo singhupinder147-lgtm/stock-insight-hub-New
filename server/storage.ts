@@ -1,4 +1,3 @@
-
 import { db } from "./db";
 import {
   stocks, lists, listItems, fundamentals,
@@ -27,6 +26,7 @@ export interface IStorage {
   getListItems(listId: number): Promise<Stock[]>;
   addListItem(item: InsertListItem): Promise<ListItem>;
   removeListItem(listId: number, stockId: number): Promise<void>;
+  clearListItems(listId: number): Promise<void>;
 
   // Fundamentals
   getFundamentals(stockId: number): Promise<Fundamentals | undefined>;
@@ -56,21 +56,10 @@ export class DatabaseStorage implements IStorage {
 
   async bulkCreateStocks(symbols: string[]): Promise<number> {
     if (symbols.length === 0) return 0;
-    
-    // Deduplicate and prepare values
     const uniqueSymbols = [...new Set(symbols.map(s => s.trim().toUpperCase()))];
-    
-    let count = 0;
-    // We do this in a loop or with ON CONFLICT DO NOTHING if supported, 
-    // but Drizzle/PG simple insert with ignore is safer done via upsert or check
-    // For simplicity, we'll try to insert one by one or filter existing.
-    // Let's use ON CONFLICT DO NOTHING equivalent
-    
     await db.insert(stocks)
       .values(uniqueSymbols.map(s => ({ symbol: s, name: s })))
       .onConflictDoNothing({ target: stocks.symbol });
-      
-    // Count how many are in the list now - easier than tracking insert count directly with onConflict
     return uniqueSymbols.length;
   }
 
@@ -88,18 +77,14 @@ export class DatabaseStorage implements IStorage {
 
   // Lists
   async getLists(): Promise<(StockList & { itemCount: number })[]> {
-    // This requires a join or subquery to count items
     const allLists = await db.select().from(lists);
     const result = [];
-    
     for (const list of allLists) {
       const [count] = await db.select({ count: sql<number>`count(*)` })
         .from(listItems)
         .where(eq(listItems.listId, list.id));
-      
       result.push({ ...list, itemCount: Number(count.count) });
     }
-    
     return result;
   }
 
@@ -120,26 +105,21 @@ export class DatabaseStorage implements IStorage {
 
   // List Items
   async getListItems(listId: number): Promise<Stock[]> {
-    // Join stocks and listItems
     const rows = await db.select({ stock: stocks })
       .from(listItems)
       .innerJoin(stocks, eq(listItems.stockId, stocks.id))
       .where(eq(listItems.listId, listId));
-      
     return rows.map(r => r.stock);
   }
 
   async addListItem(item: InsertListItem): Promise<ListItem> {
-    // Check if exists
     const [existing] = await db.select()
       .from(listItems)
       .where(and(
         eq(listItems.listId, item.listId),
         eq(listItems.stockId, item.stockId)
       ));
-      
     if (existing) return existing;
-    
     const [newItem] = await db.insert(listItems).values(item).returning();
     return newItem;
   }
@@ -152,12 +132,17 @@ export class DatabaseStorage implements IStorage {
       ));
   }
 
+  // ✅ NEW - Clear all stocks from a list
+  async clearListItems(listId: number): Promise<void> {
+    await db.delete(listItems)
+      .where(eq(listItems.listId, listId));
+  }
+
   // Fundamentals
   async getFundamentals(stockId: number): Promise<Fundamentals | undefined> {
     const [fund] = await db.select().from(fundamentals).where(eq(fundamentals.stockId, stockId));
     if (fund) return fund;
 
-    // If not found, generate mock data for any stock
     const [stock] = await db.select().from(stocks).where(eq(stocks.id, stockId));
     if (!stock) return undefined;
 
