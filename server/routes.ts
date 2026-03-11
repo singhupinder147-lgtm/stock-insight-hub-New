@@ -111,13 +111,14 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
-  // ✅ NEW - Clear all stocks from a list
+  // ✅ Clear all stocks from a list
   app.delete("/api/lists/:id/items/all", async (req, res) => {
     const listId = Number(req.params.id);
     await storage.clearListItems(listId);
     res.status(204).send();
   });
 
+  // ✅ NEWS
   app.get("/api/news", async (req, res) => {
     try {
       const news = [
@@ -131,6 +132,74 @@ export async function registerRoutes(
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch news" });
     }
+  });
+
+  // ✅ SCREENER.IN FUNDAMENTALS - Option 2 (Backend fetch)
+  app.get("/api/screener/:symbol", async (req, res) => {
+    const symbol = req.params.symbol.toUpperCase();
+    
+    // Try consolidated first, then standalone
+    const urls = [
+      `https://www.screener.in/api/company/${symbol}/consolidated/`,
+      `https://www.screener.in/api/company/${symbol}/`,
+    ];
+
+    for (const url of urls) {
+      try {
+        const response = await fetch(url, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept": "application/json, text/html, */*",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Referer": "https://www.screener.in/",
+          },
+        });
+
+        if (!response.ok) continue;
+
+        const contentType = response.headers.get("content-type") || "";
+
+        // If JSON response - perfect!
+        if (contentType.includes("application/json")) {
+          const data = await response.json();
+          return res.json({ success: true, source: "screener", data });
+        }
+
+        // If HTML response - parse the key numbers out
+        if (contentType.includes("text/html")) {
+          const html = await response.text();
+          
+          // Extract key ratios from HTML using regex
+          const extractNumber = (pattern: RegExp) => {
+            const match = html.match(pattern);
+            return match ? parseFloat(match[1].replace(/,/g, "")) : null;
+          };
+
+          const parsed = {
+            marketCap: extractNumber(/Market Cap[^₹]*₹\s*([\d,]+)/),
+            pe: extractNumber(/Stock P\/E[^0-9]*([\d.]+)/),
+            bookValue: extractNumber(/Book Value[^₹]*₹\s*([\d.]+)/),
+            dividendYield: extractNumber(/Dividend Yield[^0-9]*([\d.]+)/),
+            roce: extractNumber(/ROCE[^0-9]*([\d.]+)/),
+            roe: extractNumber(/ROE[^0-9]*([\d.]+)/),
+            faceValue: extractNumber(/Face Value[^₹]*₹\s*([\d.]+)/),
+          };
+
+          // Check if we got at least some data
+          if (parsed.pe || parsed.roe || parsed.roce) {
+            return res.json({ success: true, source: "screener-html", data: parsed });
+          }
+        }
+      } catch (err) {
+        continue;
+      }
+    }
+
+    // If all attempts fail, return error
+    return res.status(404).json({ 
+      success: false, 
+      message: `Could not fetch data for ${symbol} from Screener.in` 
+    });
   });
 
   // === SEED DATA ===
