@@ -1,4 +1,4 @@
-import https from "https";
+import * as https from "https";
 import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
@@ -8,21 +8,28 @@ import { z } from "zod";
 /* SAFE FETCH FOR NODE */
 function safeFetch(url: string): Promise<any> {
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { headers: { "User-Agent": "Mozilla/5.0" } }, (res) => {
-      let data = "";
+    const req = https.get(
+      url,
+      { headers: { "User-Agent": "Mozilla/5.0" } },
+      (res) => {
+        let data: string = "";
 
-      res.on("data", (chunk) => (data += chunk));
-
-      res.on("end", () => {
-        resolve({
-          ok: (res.statusCode || 0) >= 200 && (res.statusCode || 0) < 300,
-          text: async () => data,
-          headers: {
-            get: (h: string) => res.headers[h.toLowerCase()],
-          },
+        res.on("data", (chunk) => {
+          data += chunk;
         });
-      });
-    });
+
+        res.on("end", () => {
+          resolve({
+            ok: (res.statusCode || 0) >= 200 && (res.statusCode || 0) < 300,
+            text: async () => data,
+            headers: {
+              get: (h: string) =>
+                String(res.headers[h.toLowerCase()] || ""),
+            },
+          });
+        });
+      }
+    );
 
     req.on("error", reject);
   });
