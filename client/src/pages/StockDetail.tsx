@@ -16,7 +16,8 @@ import {
   Newspaper,
   X,
   Menu,
-  Trash
+  Trash,
+  RefreshCw
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -28,12 +29,38 @@ import {
   DropdownMenuSubContent
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+
+// ✅ Real live price fetch via CORS proxy
+async function fetchLivePrice(symbol: string) {
+  const suffixes = [".NS", ".BO"];
+  for (const suffix of suffixes) {
+    try {
+      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol.toUpperCase()}${suffix}`;
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(yahooUrl)}`;
+      const res = await fetch(proxyUrl);
+      if (!res.ok) continue;
+      const json = await res.json();
+      const meta = json?.chart?.result?.[0]?.meta;
+      if (meta?.regularMarketPrice) {
+        return {
+          price: meta.regularMarketPrice,
+          change: meta.regularMarketChangePercent || 0,
+          high: meta.regularMarketDayHigh || null,
+          low: meta.regularMarketDayLow || null,
+          prevClose: meta.previousClose || null,
+          volume: meta.regularMarketVolume || null,
+        };
+      }
+    } catch { continue; }
+  }
+  return null;
+}
 
 export default function StockDetail() {
   const { id, listId } = useParams<{ id: string, listId?: string }>();
@@ -44,6 +71,18 @@ export default function StockDetail() {
   const [newSymbols, setNewSymbols] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
+
+  // ✅ Real price state
+  const [priceData, setPriceData] = useState<{
+    price: number;
+    change: number;
+    high: number | null;
+    low: number | null;
+    prevClose: number | null;
+    volume: number | null;
+  } | null>(null);
+  const [priceLoading, setPriceLoading] = useState(false);
+  const [priceError, setPriceError] = useState(false);
 
   const bulkCreate = useMutation({
     mutationFn: async (symbols: string[]) => {
@@ -59,7 +98,6 @@ export default function StockDetail() {
     }
   });
 
-  // ✅ NEW - Clear all stocks from list
   const clearList = useMutation({
     mutationFn: async () => {
       await fetch(`/api/lists/${currentListId}/items/all`, { method: "DELETE" });
@@ -74,7 +112,6 @@ export default function StockDetail() {
   const handleAddStocks = async () => {
     const symbols = newSymbols.split(/[\s,]+/).filter(s => s.trim().length > 0);
     if (symbols.length === 0) return;
-    
     bulkCreate.mutate(symbols, {
       onSuccess: async (data: { count: number }) => {
         if (currentListId) {
@@ -95,26 +132,28 @@ export default function StockDetail() {
   const { data: stock, isLoading } = useStock(stockId);
   const { data: allStocks } = useStocks();
 
-  const [price, setPrice] = useState<number | null>(null);
-  const [change, setChange] = useState<number | null>(null);
+  // ✅ Fetch real price when stock loads
+  const loadPrice = useCallback(async (symbol: string) => {
+    setPriceLoading(true);
+    setPriceError(false);
+    const result = await fetchLivePrice(symbol);
+    if (result) {
+      setPriceData(result);
+      setPriceError(false);
+    } else {
+      setPriceError(true);
+    }
+    setPriceLoading(false);
+  }, []);
 
   useEffect(() => {
-    if (stock) {
-      const basePrice = 1000 + (stock.id * 50);
-      setPrice(basePrice);
-      setChange(0);
-      const interval = setInterval(() => {
-        setPrice(prev => {
-          if (!prev) return basePrice;
-          const fluctuation = (Math.random() - 0.5) * 10;
-          const nextPrice = prev + fluctuation;
-          setChange(((nextPrice - basePrice) / basePrice) * 100);
-          return nextPrice;
-        });
-      }, 60000);
+    if (stock?.symbol) {
+      loadPrice(stock.symbol);
+      // Auto refresh every 60 seconds
+      const interval = setInterval(() => loadPrice(stock.symbol), 60000);
       return () => clearInterval(interval);
     }
-  }, [stock]);
+  }, [stock?.symbol, loadPrice]);
 
   const { data: listItems } = useQuery({
     queryKey: [currentListId ? api.lists.getItems.path : "/api/stocks", currentListId],
@@ -191,7 +230,6 @@ export default function StockDetail() {
       </div>
       
       <div className="flex-1 flex overflow-hidden md:ml-64 md:mr-80">
-        {/* Main Content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth">
           <div className="max-w-4xl mx-auto space-y-6 md:space-y-8 animate-in">
             
@@ -207,7 +245,6 @@ export default function StockDetail() {
                   <Sidebar onClose={() => setIsMobileMenuOpen(false)} />
                 </SheetContent>
               </Sheet>
-              
               <Sheet open={isRightSidebarOpen} onOpenChange={setIsRightSidebarOpen}>
                 <SheetTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-2">
@@ -216,17 +253,13 @@ export default function StockDetail() {
                 </SheetTrigger>
                 <SheetContent side="right" className="p-0 w-80">
                   <StockListSidebar 
-                    search={search}
-                    setSearch={setSearch}
-                    newSymbols={newSymbols}
-                    setNewSymbols={setNewSymbols}
+                    search={search} setSearch={setSearch}
+                    newSymbols={newSymbols} setNewSymbols={setNewSymbols}
                     handleAddStocks={handleAddStocks}
                     isBulkPending={bulkCreate.isPending}
                     filteredStocks={filteredStocks}
-                    currentListId={currentListId}
-                    stockId={stockId}
-                    setLocation={setLocation}
-                    removeListItem={removeListItem}
+                    currentListId={currentListId} stockId={stockId}
+                    setLocation={setLocation} removeListItem={removeListItem}
                     clearList={clearList}
                     onClose={() => setIsRightSidebarOpen(false)}
                   />
@@ -234,7 +267,7 @@ export default function StockDetail() {
               </Sheet>
             </div>
 
-            {/* Breadcrumb / Back */}
+            {/* Back */}
             <button 
               onClick={() => window.history.back()}
               className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -249,45 +282,69 @@ export default function StockDetail() {
                   <h1 className="text-3xl md:text-4xl font-bold tracking-tighter text-foreground">{stock.symbol}</h1>
                   <span className="text-lg md:text-xl text-muted-foreground font-light">{stock.name}</span>
                 </div>
-                <div className="flex items-center gap-3 mt-1">
-                  {price && (
+
+                {/* ✅ Real Price Display */}
+                <div className="flex items-center gap-3 mt-2 flex-wrap">
+                  {priceLoading && (
+                    <span className="text-sm text-muted-foreground flex items-center gap-1">
+                      <RefreshCw className="h-3 w-3 animate-spin" /> Loading price...
+                    </span>
+                  )}
+                  {priceError && !priceLoading && (
+                    <span className="text-sm text-red-500 flex items-center gap-2">
+                      Price unavailable
+                      <button onClick={() => loadPrice(stock.symbol)} className="underline text-xs">Retry</button>
+                    </span>
+                  )}
+                  {priceData && !priceLoading && (
                     <>
-                      <span className="text-xl md:text-2xl font-bold text-foreground">
-                        ₹{price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <span className="text-2xl md:text-3xl font-bold text-foreground">
+                        ₹{priceData.price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
-                      <span className={`text-sm font-medium ${change && change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        {change && change >= 0 ? '+' : ''}{change?.toFixed(2)}%
+                      <span className={`text-sm font-semibold px-2 py-0.5 rounded ${priceData.change >= 0 ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
+                        {priceData.change >= 0 ? '+' : ''}{priceData.change.toFixed(2)}%
                       </span>
+                      {priceData.high && priceData.low && (
+                        <span className="text-xs text-muted-foreground">
+                          H: ₹{priceData.high.toFixed(2)} | L: ₹{priceData.low.toFixed(2)}
+                        </span>
+                      )}
+                      {priceData.prevClose && (
+                        <span className="text-xs text-muted-foreground">
+                          Prev: ₹{priceData.prevClose.toFixed(2)}
+                        </span>
+                      )}
+                      <button onClick={() => loadPrice(stock.symbol)} className="text-xs text-muted-foreground hover:text-foreground">
+                        <RefreshCw className="h-3 w-3" />
+                      </button>
                     </>
                   )}
                 </div>
+
                 <div className="flex flex-wrap items-center gap-2 mt-2">
-                   <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground ring-1 ring-inset ring-gray-500/10">
-                     Stock
-                   </span>
-                   <span className="text-xs text-muted-foreground">Added on {new Date(stock.addedAt || "").toLocaleDateString()}</span>
+                  <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground ring-1 ring-inset ring-gray-500/10">
+                    Stock
+                  </span>
+                  <span className="text-xs text-muted-foreground">Added on {new Date(stock.addedAt || "").toLocaleDateString()}</span>
+                  <span className="text-xs text-muted-foreground">• Auto refreshes every 60s</span>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
                 <Button 
-                  variant="outline" 
-                  size="sm"
+                  variant="outline" size="sm"
                   className="flex-1 md:flex-none gap-2 border-primary/50 text-primary hover:bg-primary/10 hover:text-primary"
                   onClick={() => window.open(`https://www.tradingview.com/chart/?symbol=NSE:${stock.symbol}`, 'tradingview_window')}
                 >
                   TV <ExternalLink className="h-4 w-4" />
                 </Button>
-
                 <Button 
-                  variant="outline" 
-                  size="sm"
+                  variant="outline" size="sm"
                   className="flex-1 md:flex-none gap-2 border-orange-500/50 text-orange-500 hover:bg-orange-500/10 hover:text-orange-500"
                   onClick={() => window.open(`https://www.screener.in/company/${stock.symbol}/`, 'screener_window')}
                 >
                   Screener <ExternalLink className="h-4 w-4" />
                 </Button>
-                
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="secondary" size="sm" className="flex-1 md:flex-none">Actions</Button>
@@ -368,17 +425,13 @@ export default function StockDetail() {
         {/* Desktop Right Sidebar */}
         <aside className="hidden md:flex w-80 border-l border-border bg-card flex-col fixed right-0 top-0 h-screen z-10">
           <StockListSidebar 
-            search={search}
-            setSearch={setSearch}
-            newSymbols={newSymbols}
-            setNewSymbols={setNewSymbols}
+            search={search} setSearch={setSearch}
+            newSymbols={newSymbols} setNewSymbols={setNewSymbols}
             handleAddStocks={handleAddStocks}
             isBulkPending={bulkCreate.isPending}
             filteredStocks={filteredStocks}
-            currentListId={currentListId}
-            stockId={stockId}
-            setLocation={setLocation}
-            removeListItem={removeListItem}
+            currentListId={currentListId} stockId={stockId}
+            setLocation={setLocation} removeListItem={removeListItem}
             clearList={clearList}
           />
         </aside>
@@ -427,7 +480,6 @@ function StockListSidebar({
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        
         <div className="flex gap-2">
           <Input
             placeholder="Add symbols..."
@@ -440,13 +492,9 @@ function StockListSidebar({
             <Plus className="h-4 w-4" />
           </Button>
         </div>
-
-        {/* ✅ NEW - Clear All Button - only shows when inside a list */}
         {currentListId && (
           <Button
-            variant="destructive"
-            size="sm"
-            className="w-full gap-2"
+            variant="destructive" size="sm" className="w-full gap-2"
             onClick={() => {
               if (confirm("Remove ALL stocks from this list? This will NOT delete the stocks from other lists.")) {
                 clearList.mutate();
