@@ -3,6 +3,38 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
+import https from "https";
+
+// ✅ Safe fetch function that works on all Node.js versions
+function safeFetch(url: string, headers: Record<string, string> = {}): Promise<{ ok: boolean; json: () => Promise<any>; text: () => Promise<string>; headers: { get: (h: string) => string | null } }> {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    const options = {
+      hostname: urlObj.hostname,
+      path: urlObj.pathname + urlObj.search,
+      method: "GET",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json, text/html, */*",
+        ...headers,
+      },
+    };
+    const req = https.request(options, (res) => {
+      let data = "";
+      res.on("data", (chunk) => { data += chunk; });
+      res.on("end", () => {
+        resolve({
+          ok: (res.statusCode || 0) >= 200 && (res.statusCode || 0) < 300,
+          json: () => Promise.resolve(JSON.parse(data)),
+          text: () => Promise.resolve(data),
+          headers: { get: (h: string) => res.headers[h.toLowerCase()] as string || null },
+        });
+      });
+    });
+    req.on("error", reject);
+    req.end();
+  });
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -134,11 +166,9 @@ export async function registerRoutes(
     }
   });
 
-  // ✅ SCREENER.IN FUNDAMENTALS - Option 2 (Backend fetch)
+  // ✅ SCREENER.IN FUNDAMENTALS
   app.get("/api/screener/:symbol", async (req, res) => {
     const symbol = req.params.symbol.toUpperCase();
-    
-    // Try consolidated first, then standalone
     const urls = [
       `https://www.screener.in/api/company/${symbol}/consolidated/`,
       `https://www.screener.in/api/company/${symbol}/`,
@@ -146,35 +176,21 @@ export async function registerRoutes(
 
     for (const url of urls) {
       try {
-        const response = await fetch(url, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Accept": "application/json, text/html, */*",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Referer": "https://www.screener.in/",
-          },
-        });
-
+        const response = await safeFetch(url);
         if (!response.ok) continue;
-
         const contentType = response.headers.get("content-type") || "";
 
-        // If JSON response - perfect!
         if (contentType.includes("application/json")) {
           const data = await response.json();
           return res.json({ success: true, source: "screener", data });
         }
 
-        // If HTML response - parse the key numbers out
         if (contentType.includes("text/html")) {
           const html = await response.text();
-          
-          // Extract key ratios from HTML using regex
           const extractNumber = (pattern: RegExp) => {
             const match = html.match(pattern);
             return match ? parseFloat(match[1].replace(/,/g, "")) : null;
           };
-
           const parsed = {
             marketCap: extractNumber(/Market Cap[^₹]*₹\s*([\d,]+)/),
             pe: extractNumber(/Stock P\/E[^0-9]*([\d.]+)/),
@@ -184,8 +200,6 @@ export async function registerRoutes(
             roe: extractNumber(/ROE[^0-9]*([\d.]+)/),
             faceValue: extractNumber(/Face Value[^₹]*₹\s*([\d.]+)/),
           };
-
-          // Check if we got at least some data
           if (parsed.pe || parsed.roe || parsed.roce) {
             return res.json({ success: true, source: "screener-html", data: parsed });
           }
@@ -195,7 +209,6 @@ export async function registerRoutes(
       }
     }
 
-    // If all attempts fail, return error
     return res.status(404).json({ 
       success: false, 
       message: `Could not fetch data for ${symbol} from Screener.in` 
@@ -208,9 +221,7 @@ export async function registerRoutes(
   app.get("/api/stocks/:id/fundamentals", async (req, res) => {
     const id = Number(req.params.id);
     const fund = await storage.getFundamentals(id);
-    if (!fund) {
-      return res.json(null);
-    }
+    if (!fund) return res.json(null);
     res.json(fund);
   });
 
@@ -288,6 +299,6 @@ async function seedDatabase() {
       ]
     });
   }
-  
+
   console.log("Seeding completed.");
 }
