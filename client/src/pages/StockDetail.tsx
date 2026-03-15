@@ -28,7 +28,7 @@ import {
   DropdownMenuSubContent
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -59,7 +59,6 @@ export default function StockDetail() {
     }
   });
 
-  // ✅ NEW - Clear all stocks from list
   const clearList = useMutation({
     mutationFn: async () => {
       await fetch(`/api/lists/${currentListId}/items/all`, { method: "DELETE" });
@@ -74,7 +73,6 @@ export default function StockDetail() {
   const handleAddStocks = async () => {
     const symbols = newSymbols.split(/[\s,]+/).filter(s => s.trim().length > 0);
     if (symbols.length === 0) return;
-    
     bulkCreate.mutate(symbols, {
       onSuccess: async (data: { count: number }) => {
         if (currentListId) {
@@ -191,7 +189,6 @@ export default function StockDetail() {
       </div>
       
       <div className="flex-1 flex overflow-hidden md:ml-64 md:mr-80">
-        {/* Main Content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth">
           <div className="max-w-4xl mx-auto space-y-6 md:space-y-8 animate-in">
             
@@ -207,7 +204,6 @@ export default function StockDetail() {
                   <Sidebar onClose={() => setIsMobileMenuOpen(false)} />
                 </SheetContent>
               </Sheet>
-              
               <Sheet open={isRightSidebarOpen} onOpenChange={setIsRightSidebarOpen}>
                 <SheetTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-2">
@@ -216,17 +212,13 @@ export default function StockDetail() {
                 </SheetTrigger>
                 <SheetContent side="right" className="p-0 w-80">
                   <StockListSidebar 
-                    search={search}
-                    setSearch={setSearch}
-                    newSymbols={newSymbols}
-                    setNewSymbols={setNewSymbols}
+                    search={search} setSearch={setSearch}
+                    newSymbols={newSymbols} setNewSymbols={setNewSymbols}
                     handleAddStocks={handleAddStocks}
                     isBulkPending={bulkCreate.isPending}
                     filteredStocks={filteredStocks}
-                    currentListId={currentListId}
-                    stockId={stockId}
-                    setLocation={setLocation}
-                    removeListItem={removeListItem}
+                    currentListId={currentListId} stockId={stockId}
+                    setLocation={setLocation} removeListItem={removeListItem}
                     clearList={clearList}
                     onClose={() => setIsRightSidebarOpen(false)}
                   />
@@ -234,7 +226,7 @@ export default function StockDetail() {
               </Sheet>
             </div>
 
-            {/* Breadcrumb / Back */}
+            {/* Back */}
             <button 
               onClick={() => window.history.back()}
               className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -262,32 +254,28 @@ export default function StockDetail() {
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 mt-2">
-                   <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground ring-1 ring-inset ring-gray-500/10">
-                     Stock
-                   </span>
-                   <span className="text-xs text-muted-foreground">Added on {new Date(stock.addedAt || "").toLocaleDateString()}</span>
+                  <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground ring-1 ring-inset ring-gray-500/10">
+                    Stock
+                  </span>
+                  <span className="text-xs text-muted-foreground">Added on {new Date(stock.addedAt || "").toLocaleDateString()}</span>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
                 <Button 
-                  variant="outline" 
-                  size="sm"
+                  variant="outline" size="sm"
                   className="flex-1 md:flex-none gap-2 border-primary/50 text-primary hover:bg-primary/10 hover:text-primary"
                   onClick={() => window.open(`https://www.tradingview.com/chart/?symbol=NSE:${stock.symbol}`, 'tradingview_window')}
                 >
                   TV <ExternalLink className="h-4 w-4" />
                 </Button>
-
                 <Button 
-                  variant="outline" 
-                  size="sm"
+                  variant="outline" size="sm"
                   className="flex-1 md:flex-none gap-2 border-orange-500/50 text-orange-500 hover:bg-orange-500/10 hover:text-orange-500"
                   onClick={() => window.open(`https://www.screener.in/company/${stock.symbol}/`, 'screener_window')}
                 >
                   Screener <ExternalLink className="h-4 w-4" />
                 </Button>
-                
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="secondary" size="sm" className="flex-1 md:flex-none">Actions</Button>
@@ -368,17 +356,13 @@ export default function StockDetail() {
         {/* Desktop Right Sidebar */}
         <aside className="hidden md:flex w-80 border-l border-border bg-card flex-col fixed right-0 top-0 h-screen z-10">
           <StockListSidebar 
-            search={search}
-            setSearch={setSearch}
-            newSymbols={newSymbols}
-            setNewSymbols={setNewSymbols}
+            search={search} setSearch={setSearch}
+            newSymbols={newSymbols} setNewSymbols={setNewSymbols}
             handleAddStocks={handleAddStocks}
             isBulkPending={bulkCreate.isPending}
             filteredStocks={filteredStocks}
-            currentListId={currentListId}
-            stockId={stockId}
-            setLocation={setLocation}
-            removeListItem={removeListItem}
+            currentListId={currentListId} stockId={stockId}
+            setLocation={setLocation} removeListItem={removeListItem}
             clearList={clearList}
           />
         </aside>
@@ -409,6 +393,15 @@ function StockListSidebar({
   currentListId, stockId, setLocation, removeListItem,
   clearList, onClose
 }: StockListSidebarProps) {
+
+  // ✅ Auto scroll active stock into view
+  const activeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (activeRef.current) {
+      activeRef.current.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }, [stockId]);
+
   return (
     <>
       <div className="p-4 border-b border-border space-y-4">
@@ -427,7 +420,6 @@ function StockListSidebar({
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        
         <div className="flex gap-2">
           <Input
             placeholder="Add symbols..."
@@ -440,13 +432,9 @@ function StockListSidebar({
             <Plus className="h-4 w-4" />
           </Button>
         </div>
-
-        {/* ✅ NEW - Clear All Button - only shows when inside a list */}
         {currentListId && (
           <Button
-            variant="destructive"
-            size="sm"
-            className="w-full gap-2"
+            variant="destructive" size="sm" className="w-full gap-2"
             onClick={() => {
               if (confirm("Remove ALL stocks from this list? This will NOT delete the stocks from other lists.")) {
                 clearList.mutate();
@@ -464,6 +452,7 @@ function StockListSidebar({
           {filteredStocks.map((s) => (
             <div
               key={s.id}
+              ref={s.id === stockId ? activeRef : null}
               className={`group w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center justify-between ${
                 s.id === stockId 
                   ? "bg-primary text-primary-foreground font-medium" 
