@@ -164,7 +164,7 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
+                        className="h-8 w-8 opacity-100 transition-opacity text-muted-foreground hover:text-primary"
                         onClick={(e) => {
                           e.stopPropagation();
                           setEditingId(list.id);
@@ -179,7 +179,7 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive mr-1"
+                            className="h-8 w-8 opacity-100 transition-opacity text-muted-foreground hover:text-destructive mr-1"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <Trash2 className="h-3 w-3" />
