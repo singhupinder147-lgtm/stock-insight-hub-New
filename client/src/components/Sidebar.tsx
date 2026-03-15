@@ -116,7 +116,6 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   )}
                 >
-                  {/* Rename mode */}
                   {isEditing ? (
                     <div className="flex items-center gap-1 px-2 py-1 flex-1">
                       <Input
@@ -162,7 +161,6 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                         )}
                       </Link>
 
-                      {/* Rename button */}
                       <Button 
                         variant="ghost" 
                         size="icon" 
@@ -176,7 +174,6 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                         <Pencil className="h-3 w-3" />
                       </Button>
 
-                      {/* Delete button */}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button 
