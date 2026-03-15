@@ -3,6 +3,9 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
+import { db } from "./db";
+import { lists } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -82,6 +85,28 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // ✅ NEW - Rename a list
+  app.patch("/api/lists/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const { name } = req.body;
+      if (!name || name.trim().length === 0) {
+        return res.status(400).json({ message: "Name is required" });
+      }
+      const [updated] = await db
+        .update(lists)
+        .set({ name: name.trim() })
+        .where(eq(lists.id, id))
+        .returning();
+      if (!updated) {
+        return res.status(404).json({ message: "List not found" });
+      }
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to rename list" });
+    }
+  });
+
   app.get(api.lists.getItems.path, async (req, res) => {
     const items = await storage.getListItems(Number(req.params.id));
     res.json(items);
@@ -111,7 +136,7 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
-  // ✅ NEW - Clear all stocks from a list
+  // ✅ Clear all stocks from a list
   app.delete("/api/lists/:id/items/all", async (req, res) => {
     const listId = Number(req.params.id);
     await storage.clearListItems(listId);
@@ -139,9 +164,7 @@ export async function registerRoutes(
   app.get("/api/stocks/:id/fundamentals", async (req, res) => {
     const id = Number(req.params.id);
     const fund = await storage.getFundamentals(id);
-    if (!fund) {
-      return res.json(null);
-    }
+    if (!fund) return res.json(null);
     res.json(fund);
   });
 
