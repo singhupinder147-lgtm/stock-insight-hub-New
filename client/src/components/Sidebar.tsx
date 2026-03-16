@@ -12,8 +12,7 @@ import {
   TrendingUp,
   X,
   Pencil,
-  Check,
-  MoreVertical
+  Check
 } from "lucide-react";
 import {
   AlertDialog,
@@ -25,12 +24,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -109,7 +102,7 @@ export function Sidebar({ onClose, className }: SidebarProps) {
         </div>
 
         <ScrollArea className="h-[calc(100vh-250px)]">
-          <div className="space-y-1 px-2">
+          <div className="space-y-1">
             {lists?.map((list) => {
               const isActive = location === `/lists/${list.id}`;
               const isEditing = editingId === list.id;
@@ -118,14 +111,14 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                 <div 
                   key={list.id} 
                   className={cn(
-                    "group flex items-center justify-between rounded-md text-sm font-medium transition-colors",
+                    "flex items-center rounded-md text-sm font-medium transition-colors",
                     isActive 
                       ? "bg-primary/10 text-primary" 
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   )}
                 >
                   {isEditing ? (
-                    <div className="flex items-center gap-1 px-2 py-1 flex-1">
+                    <div className="flex items-center gap-1 px-2 py-1 w-full">
                       <Input
                         value={editingName}
                         onChange={(e) => setEditingName(e.target.value)}
@@ -133,13 +126,13 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                           if (e.key === "Enter") handleRenameSubmit(list.id);
                           if (e.key === "Escape") setEditingId(null);
                         }}
-                        className="h-7 text-xs"
+                        className="h-7 text-xs flex-1"
                         autoFocus
                       />
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-green-500 hover:text-green-600 flex-shrink-0"
+                        className="h-6 w-6 flex-shrink-0 text-green-500"
                         onClick={() => handleRenameSubmit(list.id)}
                       >
                         <Check className="h-3 w-3" />
@@ -147,64 +140,55 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 flex-shrink-0"
+                        className="h-6 w-6 flex-shrink-0"
                         onClick={() => setEditingId(null)}
                       >
                         <X className="h-3 w-3" />
                       </Button>
                     </div>
                   ) : (
-                    <div className="flex items-center w-full">
+                    <div className="flex items-center w-full pr-1">
+                      {/* List name link */}
                       <Link 
                         href={`/lists/${list.id}`}
                         onClick={onClose}
-                        className="flex items-center gap-2 px-3 py-2.5 flex-1 min-w-0"
+                        className="flex items-center gap-2 px-3 py-2 flex-1 min-w-0"
                       >
-                        <ListIcon className="h-4 w-4 flex-shrink-0" />
+                        <ListIcon className="h-3.5 w-3.5 flex-shrink-0" />
                         <span className="truncate text-xs">{list.name}</span>
                         {list.itemCount > 0 && (
-                          <span className="flex-shrink-0 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
+                          <span className="flex-shrink-0 text-xs bg-muted text-muted-foreground px-1 py-0.5 rounded-full ml-auto">
                             {list.itemCount}
                           </span>
                         )}
                       </Link>
 
-                      {/* ✅ 3-dot menu button - always visible */}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 flex-shrink-0 mr-1 text-muted-foreground hover:text-foreground"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MoreVertical className="h-3.5 w-3.5" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-36">
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingId(list.id);
-                              setEditingName(list.name);
-                            }}
-                            className="gap-2 cursor-pointer"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                            Rename
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeletingId(list.id);
-                            }}
-                            className="gap-2 cursor-pointer text-destructive focus:text-destructive"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {/* ✅ Pencil icon - always visible */}
+                      <button
+                        className="flex-shrink-0 p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          setEditingId(list.id);
+                          setEditingName(list.name);
+                        }}
+                        title="Rename"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+
+                      {/* ✅ Trash icon - always visible */}
+                      <button
+                        className="flex-shrink-0 p-1 rounded hover:bg-muted text-muted-foreground hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          setDeletingId(list.id);
+                        }}
+                        title="Delete"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
                     </div>
                   )}
                 </div>
