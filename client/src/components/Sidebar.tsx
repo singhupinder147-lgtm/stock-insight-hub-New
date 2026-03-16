@@ -5,6 +5,7 @@ import { CreateListDialog } from "./CreateListDialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
+import { api } from "@shared/routes";
 import { 
   LayoutDashboard, 
   List as ListIcon, 
@@ -48,7 +49,7 @@ export function Sidebar({ onClose, className }: SidebarProps) {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/lists"] });
+      queryClient.invalidateQueries({ queryKey: [api.lists.list.path] });
       setEditingId(null);
       setEditingName("");
     }
@@ -158,29 +159,29 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                         )}
                       </Link>
 
-                      {/* ✅ Rename - always visible */}
+                      {/* ✅ Rename - blue color always visible */}
                       <button
-                        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-primary hover:bg-muted"
+                        className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded text-blue-400 hover:text-blue-300 hover:bg-muted"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
                           setEditingId(list.id);
                           setEditingName(list.name);
                         }}
-                        title="Rename"
+                        title="Rename list"
                       >
-                        <Pencil className="h-3 w-3" />
+                        <Pencil className="h-3.5 w-3.5" />
                       </button>
 
-                      {/* ✅ Delete - always visible */}
+                      {/* ✅ Delete - red color always visible */}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <button
-                            className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-muted mr-1"
+                            className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded text-red-400 hover:text-red-300 hover:bg-muted mr-1"
                             onClick={(e) => e.stopPropagation()}
-                            title="Delete"
+                            title="Delete list"
                           >
-                            <Trash2 className="h-3 w-3" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
