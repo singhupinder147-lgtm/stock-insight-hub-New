@@ -23,6 +23,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
@@ -40,8 +41,6 @@ export function Sidebar({ onClose, className }: SidebarProps) {
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState("");
-  const [deletingId, setDeletingId] = useState<number | null>(null);
-  const deletingList = lists?.find(l => l.id === deletingId);
 
   const renameList = useMutation({
     mutationFn: async ({ id, name }: { id: number; name: string }) => {
@@ -102,7 +101,7 @@ export function Sidebar({ onClose, className }: SidebarProps) {
         </div>
 
         <ScrollArea className="h-[calc(100vh-250px)]">
-          <div className="space-y-1">
+          <div className="space-y-1 px-2">
             {lists?.map((list) => {
               const isActive = location === `/lists/${list.id}`;
               const isEditing = editingId === list.id;
@@ -111,13 +110,14 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                 <div 
                   key={list.id} 
                   className={cn(
-                    "flex items-center rounded-md text-sm font-medium transition-colors",
+                    "flex items-center justify-between rounded-md text-sm font-medium transition-colors",
                     isActive 
                       ? "bg-primary/10 text-primary" 
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   )}
                 >
                   {isEditing ? (
+                    /* Rename input mode */
                     <div className="flex items-center gap-1 px-2 py-1 w-full">
                       <Input
                         value={editingName}
@@ -126,29 +126,25 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                           if (e.key === "Enter") handleRenameSubmit(list.id);
                           if (e.key === "Escape") setEditingId(null);
                         }}
-                        className="h-7 text-xs flex-1"
+                        className="h-6 text-xs flex-1"
                         autoFocus
                       />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 flex-shrink-0 text-green-500"
+                      <button
+                        className="flex-shrink-0 p-1 text-green-500 hover:text-green-400"
                         onClick={() => handleRenameSubmit(list.id)}
                       >
                         <Check className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 flex-shrink-0"
+                      </button>
+                      <button
+                        className="flex-shrink-0 p-1 text-muted-foreground hover:text-foreground"
                         onClick={() => setEditingId(null)}
                       >
                         <X className="h-3 w-3" />
-                      </Button>
+                      </button>
                     </div>
                   ) : (
-                    <div className="flex items-center w-full pr-1">
-                      {/* List name link */}
+                    /* Normal mode */
+                    <>
                       <Link 
                         href={`/lists/${list.id}`}
                         onClick={onClose}
@@ -157,39 +153,56 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                         <ListIcon className="h-3.5 w-3.5 flex-shrink-0" />
                         <span className="truncate text-xs">{list.name}</span>
                         {list.itemCount > 0 && (
-                          <span className="flex-shrink-0 text-xs bg-muted text-muted-foreground px-1 py-0.5 rounded-full ml-auto">
+                          <span className="flex-shrink-0 ml-auto text-xs bg-muted text-muted-foreground px-1 rounded-full">
                             {list.itemCount}
                           </span>
                         )}
                       </Link>
 
-                      {/* ✅ Pencil icon - always visible */}
+                      {/* ✅ Rename button - always visible */}
                       <button
-                        className="flex-shrink-0 p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary"
+                        className="flex-shrink-0 p-1 rounded text-muted-foreground hover:text-primary hover:bg-muted"
                         onClick={(e) => {
-                          e.stopPropagation();
                           e.preventDefault();
+                          e.stopPropagation();
                           setEditingId(list.id);
                           setEditingName(list.name);
                         }}
-                        title="Rename"
+                        title="Rename list"
                       >
                         <Pencil className="h-3 w-3" />
                       </button>
 
-                      {/* ✅ Trash icon - always visible */}
-                      <button
-                        className="flex-shrink-0 p-1 rounded hover:bg-muted text-muted-foreground hover:text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          setDeletingId(list.id);
-                        }}
-                        title="Delete"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
+                      {/* ✅ Delete button - always visible */}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button
+                            className="flex-shrink-0 p-1 mr-1 rounded text-muted-foreground hover:text-destructive hover:bg-muted"
+                            onClick={(e) => e.stopPropagation()}
+                            title="Delete list"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete list?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete "{list.name}". Stocks will NOT be deleted from other lists.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteList.mutate(list.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </>
                   )}
                 </div>
               );
@@ -197,30 +210,6 @@ export function Sidebar({ onClose, className }: SidebarProps) {
           </div>
         </ScrollArea>
       </div>
-
-      {/* ✅ Delete confirmation dialog */}
-      <AlertDialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete list?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete "{deletingList?.name}". The stocks will NOT be deleted from other lists.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeletingId(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (deletingId) deleteList.mutate(deletingId);
-                setDeletingId(null);
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
       
       <div className="mt-auto p-4 border-t border-border">
         <div className="flex items-center gap-3 px-2 py-2">
