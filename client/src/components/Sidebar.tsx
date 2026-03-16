@@ -12,7 +12,8 @@ import {
   TrendingUp,
   X,
   Pencil,
-  Check
+  Check,
+  MoreVertical
 } from "lucide-react";
 import {
   AlertDialog,
@@ -23,8 +24,13 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -41,6 +47,8 @@ export function Sidebar({ onClose, className }: SidebarProps) {
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const deletingList = lists?.find(l => l.id === deletingId);
 
   const renameList = useMutation({
     mutationFn: async ({ id, name }: { id: number; name: string }) => {
@@ -131,7 +139,7 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-green-500 hover:text-green-600"
+                        className="h-7 w-7 text-green-500 hover:text-green-600 flex-shrink-0"
                         onClick={() => handleRenameSubmit(list.id)}
                       >
                         <Check className="h-3 w-3" />
@@ -139,71 +147,65 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7"
+                        className="h-7 w-7 flex-shrink-0"
                         onClick={() => setEditingId(null)}
                       >
                         <X className="h-3 w-3" />
                       </Button>
                     </div>
                   ) : (
-                    <>
+                    <div className="flex items-center w-full">
                       <Link 
                         href={`/lists/${list.id}`}
                         onClick={onClose}
-                        className="flex items-center gap-3 px-4 py-2.5 flex-1 truncate"
+                        className="flex items-center gap-2 px-3 py-2.5 flex-1 min-w-0"
                       >
                         <ListIcon className="h-4 w-4 flex-shrink-0" />
-                        <span className="truncate">{list.name}</span>
+                        <span className="truncate text-xs">{list.name}</span>
                         {list.itemCount > 0 && (
-                          <span className="ml-auto text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
+                          <span className="flex-shrink-0 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
                             {list.itemCount}
                           </span>
                         )}
                       </Link>
 
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 opacity-100 transition-opacity text-muted-foreground hover:text-primary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingId(list.id);
-                          setEditingName(list.name);
-                        }}
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 opacity-100 transition-opacity text-muted-foreground hover:text-destructive mr-1"
+                      {/* ✅ 3-dot menu button - always visible */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 flex-shrink-0 mr-1 text-muted-foreground hover:text-foreground"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <Trash2 className="h-3 w-3" />
+                            <MoreVertical className="h-3.5 w-3.5" />
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete list?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will permanently delete the list "{list.name}". The stocks themselves will not be deleted from the master list.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction 
-                              onClick={() => deleteList.mutate(list.id)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-36">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingId(list.id);
+                              setEditingName(list.name);
+                            }}
+                            className="gap-2 cursor-pointer"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeletingId(list.id);
+                            }}
+                            className="gap-2 cursor-pointer text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   )}
                 </div>
               );
@@ -211,6 +213,30 @@ export function Sidebar({ onClose, className }: SidebarProps) {
           </div>
         </ScrollArea>
       </div>
+
+      {/* ✅ Delete confirmation dialog */}
+      <AlertDialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete list?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{deletingList?.name}". The stocks will NOT be deleted from other lists.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeletingId(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deletingId) deleteList.mutate(deletingId);
+                setDeletingId(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       
       <div className="mt-auto p-4 border-t border-border">
         <div className="flex items-center gap-3 px-2 py-2">
