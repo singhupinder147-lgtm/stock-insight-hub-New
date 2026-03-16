@@ -102,7 +102,7 @@ export function Sidebar({ onClose, className }: SidebarProps) {
         </div>
 
         <ScrollArea className="h-[calc(100vh-250px)]">
-          <div className="space-y-1 px-1">
+          <div className="space-y-1 px-2">
             {lists?.map((list) => {
               const isActive = location === `/lists/${list.id}`;
               const isEditing = editingId === list.id;
@@ -111,14 +111,14 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                 <div 
                   key={list.id} 
                   className={cn(
-                    "flex items-center rounded-md text-sm font-medium transition-colors",
+                    "group flex items-center justify-between rounded-md text-sm font-medium transition-colors",
                     isActive 
                       ? "bg-primary/10 text-primary" 
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   )}
                 >
                   {isEditing ? (
-                    <div className="flex items-center gap-1 px-1 py-1 w-full">
+                    <div className="flex items-center gap-1 px-2 py-1 flex-1">
                       <Input
                         value={editingName}
                         onChange={(e) => setEditingName(e.target.value)}
@@ -129,60 +129,64 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                         className="h-6 text-xs flex-1 min-w-0"
                         autoFocus
                       />
-                      <button
-                        className="flex-shrink-0 p-1 rounded text-green-500 hover:text-green-400"
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 flex-shrink-0 text-green-500"
                         onClick={() => handleRenameSubmit(list.id)}
                       >
                         <Check className="h-3 w-3" />
-                      </button>
-                      <button
-                        className="flex-shrink-0 p-1 rounded text-muted-foreground hover:text-foreground"
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 flex-shrink-0"
                         onClick={() => setEditingId(null)}
                       >
                         <X className="h-3 w-3" />
-                      </button>
+                      </Button>
                     </div>
                   ) : (
-                    <div className="flex items-center w-full">
-                      {/* List name */}
+                    <>
                       <Link 
                         href={`/lists/${list.id}`}
                         onClick={onClose}
-                        className="flex items-center gap-2 px-2 py-2 flex-1 min-w-0 overflow-hidden"
+                        className="flex items-center gap-3 px-4 py-2.5 flex-1 truncate"
                       >
-                        <ListIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                        <span className="truncate text-xs">{list.name}</span>
+                        <ListIcon className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{list.name}</span>
                         {list.itemCount > 0 && (
-                          <span className="flex-shrink-0 ml-1 text-xs bg-muted text-muted-foreground px-1 rounded-full">
+                          <span className="ml-auto text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
                             {list.itemCount}
                           </span>
                         )}
                       </Link>
 
-                      {/* ✅ Rename - blue color always visible */}
-                      <button
-                        className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded text-blue-400 hover:text-blue-300 hover:bg-muted"
+                      {/* ✅ Rename button */}
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 flex-shrink-0 text-blue-400 hover:text-blue-300"
                         onClick={(e) => {
-                          e.preventDefault();
                           e.stopPropagation();
                           setEditingId(list.id);
                           setEditingName(list.name);
                         }}
-                        title="Rename list"
                       >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
+                        <Pencil className="h-3 w-3" />
+                      </Button>
 
-                      {/* ✅ Delete - red color always visible */}
+                      {/* ✅ Delete button */}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <button
-                            className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded text-red-400 hover:text-red-300 hover:bg-muted mr-1"
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 flex-shrink-0 text-red-400 hover:text-red-300 mr-1"
                             onClick={(e) => e.stopPropagation()}
-                            title="Delete list"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
@@ -202,7 +206,7 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
-                    </div>
+                    </>
                   )}
                 </div>
               );
