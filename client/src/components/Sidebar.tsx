@@ -5,7 +5,7 @@ import { CreateListDialog } from "./CreateListDialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import { api } from " @shared/routes";
+import { api } from "@shared/routes";
 import { 
   LayoutDashboard, 
   List as ListIcon, 
