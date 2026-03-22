@@ -140,15 +140,3 @@ export function Sidebar({ onClose, className }: SidebarProps) {
     </div>
   );
 }
-```
-
----
-
-## Key fix:
-Changed Link className from:
-```
-flex-1 truncate
-```
-To:
-```
-flex-1 min-w-0
