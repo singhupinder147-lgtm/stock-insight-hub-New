@@ -89,7 +89,6 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   )}
                 >
-                  {/* List name - right click to rename/delete */}
                   <Link
                     href={`/lists/${list.id}`}
                     onClick={onClose}
@@ -107,13 +106,13 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                         renameList.mutate({ id: list.id, name: action.trim() });
                       }
                     }}
-                    className="flex items-center gap-3 px-4 py-2.5 flex-1 min-w-0"
+                    className="flex items-center gap-2 px-4 py-2.5 flex-1 min-w-0"
                     title="Right-click to rename or delete"
                   >
                     <ListIcon className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">{list.name}</span>
+                    <span className="truncate flex-1">{list.name}</span>
                     {list.itemCount > 0 && (
-                      <span className="ml-auto text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
+                      <span className="flex-shrink-0 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
                         {list.itemCount}
                       </span>
                     )}
@@ -124,7 +123,6 @@ export function Sidebar({ onClose, className }: SidebarProps) {
           </div>
         </ScrollArea>
 
-        {/* Helper text */}
         <p className="text-xs text-muted-foreground px-2 mt-2">
           💡 Right-click any list to rename or delete
         </p>
@@ -142,3 +140,15 @@ export function Sidebar({ onClose, className }: SidebarProps) {
     </div>
   );
 }
+```
+
+---
+
+## Key fix:
+Changed Link className from:
+```
+flex-1 truncate
+```
+To:
+```
+flex-1 min-w-0
