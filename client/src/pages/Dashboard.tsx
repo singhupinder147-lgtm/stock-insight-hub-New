@@ -23,7 +23,7 @@ export default function Dashboard() {
 
   const deleteAllMutation = useMutation({
     mutationFn: async () => {
-      await fetch(`/api/lists/${listId}/items`, {
+      await fetch(`/api/lists/${listId}/items/all`, {
         method: "DELETE",
       });
     },
