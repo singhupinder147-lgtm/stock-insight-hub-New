@@ -1,4 +1,3 @@
-```ts
 import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
@@ -17,7 +16,6 @@ export async function registerRoutes(
 
   app.get(api.stocks.list.path, async (req, res) => {
     const stocks = await storage.getAllStocks();
-
     res.json(stocks);
   });
 
@@ -154,22 +152,6 @@ export async function registerRoutes(
 
   // === LIST ITEMS ===
 
-  // ✅ Clear ALL lists
-  app.delete(api.lists.clearAllItems.path, async (req, res) => {
-    await storage.clearAllListItems();
-
-    res.status(204).send();
-  });
-
-  // ✅ Clear ONE list
-  app.delete(api.lists.clearItems.path, async (req, res) => {
-    const listId = Number(req.params.id);
-
-    await storage.clearListItems(listId);
-
-    res.status(204).send();
-  });
-
   app.get(api.lists.getItems.path, async (req, res) => {
     const items =
       await storage.getListItems(Number(req.params.id));
@@ -213,6 +195,29 @@ export async function registerRoutes(
     await storage.removeListItem(listId, stockId);
 
     res.status(204).send();
+  });
+
+  // ✅ CLEAR ALL STOCKS FROM ONE LIST
+  app.delete("/api/lists/:id/items/all", async (req, res) => {
+    try {
+      const listId = Number(req.params.id);
+
+      console.log("CLEARING LIST:", listId);
+
+      await storage.clearListItems(listId);
+
+      console.log("LIST CLEARED");
+
+      res.status(204).send();
+
+    } catch (err) {
+
+      console.error("CLEAR LIST ERROR:", err);
+
+      res.status(500).json({
+        message: "Failed to clear list items",
+      });
+    }
   });
 
   // === NEWS ===
@@ -288,4 +293,3 @@ export async function registerRoutes(
 
   return httpServer;
 }
-```
