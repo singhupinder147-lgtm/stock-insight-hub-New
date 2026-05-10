@@ -11,6 +11,7 @@ import { useState, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { api } from "@shared/routes";
 
 export default function Dashboard() {
   const params = useParams<{ id?: string }>();
@@ -21,7 +22,7 @@ export default function Dashboard() {
 
   const queryClient = useQueryClient();
 
-  // ✅ DELETE ALL STOCKS FROM CURRENT LIST
+  // ✅ Delete all stocks from current list
   const deleteAllMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch(`/api/lists/${listId}/items/all`, {
@@ -31,17 +32,23 @@ export default function Dashboard() {
       if (!response.ok) {
         throw new Error("Failed to delete all stocks");
       }
+
+      return response;
     },
 
     onSuccess: async () => {
-      // ✅ refresh list items
+      // ✅ Correct query key
       await queryClient.invalidateQueries({
-        queryKey: ["/api/lists", listId, "items"],
+        queryKey: [api.lists.getItems.path, listId],
       });
 
-      // ✅ force refetch immediately
       await queryClient.refetchQueries({
-        queryKey: ["/api/lists", listId, "items"],
+        queryKey: [api.lists.getItems.path, listId],
+      });
+
+      // Optional refresh
+      await queryClient.invalidateQueries({
+        queryKey: [api.lists.list.path],
       });
     },
   });
@@ -164,7 +171,7 @@ export default function Dashboard() {
                 {filteredStocks.length} Results
               </div>
 
-              {/* ✅ DELETE ALL BUTTON */}
+              {/* Delete All Button */}
               {listId && (
                 <Button
                   variant="destructive"
