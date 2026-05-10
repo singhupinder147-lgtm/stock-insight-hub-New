@@ -231,7 +231,7 @@ export async function registerRoutes(
   });
 
   // === SEED DATA ===
-  await seedDatabase();
+  
 
   app.get("/api/stocks/:id/fundamentals", async (req, res) => {
     const id = Number(req.params.id);
