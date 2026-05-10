@@ -21,39 +21,49 @@ export async function registerRoutes(
 
   app.get(api.stocks.search.path, async (req, res) => {
     const query = req.query.query as string;
+
     if (!query) return res.json([]);
+
     const stocks = await storage.searchStocks(query);
+
     res.json(stocks);
   });
 
   app.get(api.stocks.get.path, async (req, res) => {
     const id = Number(req.params.id);
+
     const stock = await storage.getStock(id);
 
     if (!stock) {
-      return res.status(404).json({ message: 'Stock not found' });
+      return res.status(404).json({
+        message: "Stock not found",
+      });
     }
 
     const fund = await storage.getFundamentals(id);
 
     res.json({
       ...stock,
-      fundamentals: fund || null
+      fundamentals: fund || null,
     });
   });
 
   app.post(api.stocks.bulkCreate.path, async (req, res) => {
     try {
-      const { symbols } = api.stocks.bulkCreate.input.parse(req.body);
+      const { symbols } =
+        api.stocks.bulkCreate.input.parse(req.body);
 
-      const count = await storage.bulkCreateStocks(symbols);
+      const count =
+        await storage.bulkCreateStocks(symbols);
 
       res.status(201).json({ count });
+
     } catch (err) {
+
       if (err instanceof z.ZodError) {
         return res.status(400).json({
           message: err.errors[0].message,
-          field: err.errors[0].path.join('.'),
+          field: err.errors[0].path.join("."),
         });
       }
 
@@ -63,6 +73,7 @@ export async function registerRoutes(
 
   app.delete(api.stocks.delete.path, async (req, res) => {
     await storage.deleteStock(Number(req.params.id));
+
     res.status(204).send();
   });
 
@@ -70,21 +81,25 @@ export async function registerRoutes(
 
   app.get(api.lists.list.path, async (req, res) => {
     const lists = await storage.getLists();
+
     res.json(lists);
   });
 
   app.post(api.lists.create.path, async (req, res) => {
     try {
-      const input = api.lists.create.input.parse(req.body);
+      const input =
+        api.lists.create.input.parse(req.body);
 
       const list = await storage.createList(input);
 
       res.status(201).json(list);
+
     } catch (err) {
+
       if (err instanceof z.ZodError) {
         return res.status(400).json({
           message: err.errors[0].message,
-          field: err.errors[0].path.join('.'),
+          field: err.errors[0].path.join("."),
         });
       }
 
@@ -94,6 +109,7 @@ export async function registerRoutes(
 
   app.delete(api.lists.delete.path, async (req, res) => {
     await storage.deleteList(Number(req.params.id));
+
     res.status(204).send();
   });
 
@@ -101,36 +117,45 @@ export async function registerRoutes(
   app.patch("/api/lists/:id", async (req, res) => {
     try {
       const id = Number(req.params.id);
+
       const { name } = req.body;
 
       if (!name || name.trim().length === 0) {
         return res.status(400).json({
-          message: "Name is required"
+          message: "Name is required",
         });
       }
 
       const [updated] = await db
         .update(lists)
-        .set({ name: name.trim() })
+        .set({
+          name: name.trim(),
+        })
         .where(eq(lists.id, id))
         .returning();
 
       if (!updated) {
         return res.status(404).json({
-          message: "List not found"
+          message: "List not found",
         });
       }
 
       res.json(updated);
+
     } catch (err) {
+
       res.status(500).json({
-        message: "Failed to rename list"
+        message: "Failed to rename list",
       });
     }
   });
 
+  // === LIST ITEMS ===
+
   app.get(api.lists.getItems.path, async (req, res) => {
-    const items = await storage.getListItems(Number(req.params.id));
+    const items =
+      await storage.getListItems(Number(req.params.id));
+
     res.json(items);
   });
 
@@ -138,19 +163,22 @@ export async function registerRoutes(
     try {
       const listId = Number(req.params.id);
 
-      const { stockId } = api.lists.addItem.input.parse(req.body);
+      const { stockId } =
+        api.lists.addItem.input.parse(req.body);
 
       const item = await storage.addListItem({
         listId,
-        stockId
+        stockId,
       });
 
       res.status(201).json(item);
+
     } catch (err) {
+
       if (err instanceof z.ZodError) {
         return res.status(400).json({
           message: err.errors[0].message,
-          field: err.errors[0].path.join('.'),
+          field: err.errors[0].path.join("."),
         });
       }
 
@@ -158,8 +186,10 @@ export async function registerRoutes(
     }
   });
 
+  // ✅ Remove single stock from list
   app.delete(api.lists.removeItem.path, async (req, res) => {
     const listId = Number(req.params.id);
+
     const stockId = Number(req.params.stockId);
 
     await storage.removeListItem(listId, stockId);
@@ -175,74 +205,85 @@ export async function registerRoutes(
       await storage.clearListItems(listId);
 
       res.status(204).send();
+
     } catch (err) {
+
       res.status(500).json({
         message: "Failed to clear list items",
       });
     }
   });
 
+  // === NEWS ===
+
   app.get("/api/news", async (req, res) => {
     try {
       const news = [
         {
           id: 1,
-          title: "Market Update: Nifty hits record high as banks rally",
+          title:
+            "Market Update: Nifty hits record high as banks rally",
           source: "TradeNews",
           time: "2h ago",
-          url: "#"
+          url: "#",
         },
         {
           id: 2,
-          title: "Fed meeting outcome: What traders need to know today",
+          title:
+            "Fed meeting outcome: What traders need to know today",
           source: "GlobalFinance",
           time: "4h ago",
-          url: "#"
+          url: "#",
         },
         {
           id: 3,
-          title: "Top 5 stocks to watch for swing trading this week",
+          title:
+            "Top 5 stocks to watch for swing trading this week",
           source: "InvestInsight",
           time: "5h ago",
-          url: "#"
+          url: "#",
         },
         {
           id: 4,
-          title: "Reliance Industries reports strong quarterly earnings",
+          title:
+            "Reliance Industries reports strong quarterly earnings",
           source: "BusinessDaily",
           time: "6h ago",
-          url: "#"
+          url: "#",
         },
         {
           id: 5,
-          title: "FII activity surges in IT sector stocks",
+          title:
+            "FII activity surges in IT sector stocks",
           source: "MarketWatch",
           time: "8h ago",
-          url: "#"
-        }
+          url: "#",
+        },
       ];
 
       res.json(news);
+
     } catch (err) {
+
       res.status(500).json({
-        message: "Failed to fetch news"
+        message: "Failed to fetch news",
       });
     }
   });
 
-  // === SEED DATA ===
-  
+  // === FUNDAMENTALS ===
 
   app.get("/api/stocks/:id/fundamentals", async (req, res) => {
     const id = Number(req.params.id);
 
     const fund = await storage.getFundamentals(id);
 
-    if (!fund) return res.json(null);
+    if (!fund) {
+      return res.json(null);
+    }
 
     res.json(fund);
   });
 
   return httpServer;
 }
-
