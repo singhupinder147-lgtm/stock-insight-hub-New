@@ -177,10 +177,16 @@ export const api = {
     },
 
     // ✅ CLEAR LIST
+    clearAllItems: {
+      method: 'DELETE' as const,
+      path: '/api/lists/clear-all' as const,
+      responses: {
+        204: z.void(),
+      },
+    },
     clearItems: {
       method: 'DELETE' as const,
-      path: '/api/lists/:id/items/all' as const,
-
+      path: '/api/lists/:id/clear' as const,
       responses: {
         204: z.void(),
       },
