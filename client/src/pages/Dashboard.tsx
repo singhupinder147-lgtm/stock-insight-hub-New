@@ -21,14 +21,26 @@ export default function Dashboard() {
 
   const queryClient = useQueryClient();
 
+  // ✅ DELETE ALL STOCKS FROM CURRENT LIST
   const deleteAllMutation = useMutation({
     mutationFn: async () => {
-      await fetch(`/api/lists/${listId}/items/all`, {
+      const response = await fetch(`/api/lists/${listId}/items/all`, {
         method: "DELETE",
       });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete all stocks");
+      }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
+
+    onSuccess: async () => {
+      // ✅ refresh list items
+      await queryClient.invalidateQueries({
+        queryKey: ["/api/lists", listId, "items"],
+      });
+
+      // ✅ force refetch immediately
+      await queryClient.refetchQueries({
         queryKey: ["/api/lists", listId, "items"],
       });
     },
@@ -36,16 +48,26 @@ export default function Dashboard() {
 
   // Determine what to fetch
   const { data: allStocks, isLoading: loadingAll } = useStocks();
-  const { data: listItems, isLoading: loadingList } = useListItems(listId || 0);
+
+  const {
+    data: listItems,
+    isLoading: loadingList,
+  } = useListItems(listId || 0);
+
   const { data: lists } = useLists();
 
-  const activeList = listId ? lists?.find((l) => l.id === listId) : null;
+  const activeList = listId
+    ? lists?.find((l) => l.id === listId)
+    : null;
+
   const currentStocks = listId ? listItems : allStocks;
+
   const isLoading = listId ? loadingList : loadingAll;
 
   // Client-side search filtering
   const filteredStocks = useMemo(() => {
     if (!currentStocks) return [];
+
     if (!search) return currentStocks;
 
     const lowerSearch = search.toLowerCase();
@@ -53,12 +75,15 @@ export default function Dashboard() {
     return currentStocks.filter(
       (s) =>
         s.symbol.toLowerCase().includes(lowerSearch) ||
-        (s.name && s.name.toLowerCase().includes(lowerSearch))
+        (s.name &&
+          s.name.toLowerCase().includes(lowerSearch))
     );
   }, [currentStocks, search]);
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
+
+      {/* Desktop Sidebar */}
       <div className="hidden md:block fixed left-0 top-0 h-screen z-20">
         <Sidebar />
       </div>
@@ -68,7 +93,10 @@ export default function Dashboard() {
 
           {/* Mobile Header */}
           <div className="flex md:hidden items-center justify-between mb-4">
-            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+            <Sheet
+              open={isMobileMenuOpen}
+              onOpenChange={setIsMobileMenuOpen}
+            >
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
                   <Menu className="h-6 w-6" />
@@ -76,20 +104,27 @@ export default function Dashboard() {
               </SheetTrigger>
 
               <SheetContent side="left" className="p-0 w-64">
-                <Sidebar onClose={() => setIsMobileMenuOpen(false)} />
+                <Sidebar
+                  onClose={() => setIsMobileMenuOpen(false)}
+                />
               </SheetContent>
             </Sheet>
 
-            <h1 className="font-bold text-lg">TradeVault</h1>
+            <h1 className="font-bold text-lg">
+              TradeVault
+            </h1>
 
             <div className="w-10" />
           </div>
 
-          {/* Header Section */}
+          {/* Header */}
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+
             <div>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-                {activeList ? activeList.name : "All Stocks"}
+                {activeList
+                  ? activeList.name
+                  : "All Stocks"}
               </h1>
 
               <p className="text-sm md:text-base text-muted-foreground mt-1">
@@ -105,9 +140,10 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Controls Bar */}
+          {/* Controls */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-card p-3 md:p-4 rounded-lg border border-border shadow-sm">
 
+            {/* Search */}
             <div className="relative flex-1 max-w-full md:max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 
@@ -115,30 +151,40 @@ export default function Dashboard() {
                 placeholder="Search symbol or name..."
                 className="pl-9 bg-background border-border"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) =>
+                  setSearch(e.target.value)
+                }
               />
             </div>
 
+            {/* Right Controls */}
             <div className="flex items-center gap-3 sm:ml-auto">
 
               <div className="text-sm text-muted-foreground">
                 {filteredStocks.length} Results
               </div>
 
+              {/* ✅ DELETE ALL BUTTON */}
               {listId && (
                 <Button
                   variant="destructive"
                   size="sm"
+                  disabled={deleteAllMutation.isPending}
                   onClick={() => {
-                    if (confirm("Delete all stocks from this list?")) {
+                    const confirmed = confirm(
+                      "Delete all stocks from this list?"
+                    );
+
+                    if (confirmed) {
                       deleteAllMutation.mutate();
                     }
                   }}
                 >
-                  Delete All
+                  {deleteAllMutation.isPending
+                    ? "Deleting..."
+                    : "Delete All"}
                 </Button>
               )}
-
             </div>
           </div>
 
@@ -160,7 +206,6 @@ export default function Dashboard() {
                 currentListId={listId}
               />
             )}
-
           </div>
         </div>
       </main>
