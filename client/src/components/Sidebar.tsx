@@ -1,18 +1,27 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useLists, useDeleteList } from "@/hooks/use-lists";
+import { useLists, useDeleteList, useClearAllListItems } from "@/hooks/use-lists";
 import { CreateListDialog } from "./CreateListDialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { api } from "@shared/routes";
 import { 
   LayoutDashboard, 
   List as ListIcon, 
+  Trash2,
   TrendingUp,
   X
 } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface SidebarProps {
   onClose?: () => void;
@@ -23,16 +32,7 @@ export function Sidebar({ onClose, className }: SidebarProps) {
   const [location] = useLocation();
   const { data: lists } = useLists();
   const deleteList = useDeleteList();
-
-  const renameList = useMutation({
-    mutationFn: async ({ id, name }: { id: number; name: string }) => {
-      const res = await apiRequest("PATCH", `/api/lists/${id}`, { name });
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [api.lists.list.path] });
-    }
-  });
+  const clearAllListItems = useClearAllListItems();
 
   const isAllStocks = location === "/" || location === "/stocks";
 
@@ -72,7 +72,39 @@ export function Sidebar({ onClose, className }: SidebarProps) {
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Your Lists
           </h2>
-          <CreateListDialog />
+          <div className="flex items-center gap-1">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  data-testid="button-clear-all-list-items"
+                  title="Clear all stocks from all lists"
+                  className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Clear all stocks from all lists?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will remove all stocks from every list. The lists themselves and your master stock list will not be deleted.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => clearAllListItems.mutate()}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Clear All
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <CreateListDialog />
+          </div>
         </div>
 
         <ScrollArea className="h-[calc(100vh-250px)]">
@@ -80,52 +112,63 @@ export function Sidebar({ onClose, className }: SidebarProps) {
             {lists?.map((list) => {
               const isActive = location === `/lists/${list.id}`;
               return (
-                <div
-                  key={list.id}
+                <div 
+                  key={list.id} 
                   className={cn(
-                    "flex items-center justify-between rounded-md text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-primary/10 text-primary"
+                    "group flex items-center justify-between rounded-md text-sm font-medium transition-colors",
+                    isActive 
+                      ? "bg-primary/10 text-primary" 
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   )}
                 >
-                  <Link
+                  <Link 
                     href={`/lists/${list.id}`}
                     onClick={onClose}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      const action = window.prompt(
-                        `List: "${list.name}"\n\nType "delete" to delete\nOR type a new name to rename:`
-                      );
-                      if (action === null) return;
-                      if (action.toLowerCase() === "delete") {
-                        if (window.confirm(`Are you sure you want to delete "${list.name}"?\n\nStocks will NOT be deleted from other lists.`)) {
-                          deleteList.mutate(list.id);
-                        }
-                      } else if (action.trim().length > 0) {
-                        renameList.mutate({ id: list.id, name: action.trim() });
-                      }
-                    }}
-                    className="flex items-center gap-2 px-4 py-2.5 flex-1 min-w-0"
-                    title="Right-click to rename or delete"
+                    className="flex items-center gap-3 px-4 py-2.5 flex-1 truncate"
                   >
                     <ListIcon className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate flex-1">{list.name}</span>
+                    <span className="truncate">{list.name}</span>
                     {list.itemCount > 0 && (
-                      <span className="flex-shrink-0 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
+                      <span className="ml-auto text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
                         {list.itemCount}
                       </span>
                     )}
                   </Link>
+
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive mr-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete list?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently delete the list "{list.name}". The stocks themselves will not be deleted from the master list.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={() => deleteList.mutate(list.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               );
             })}
           </div>
         </ScrollArea>
-
-        <p className="text-xs text-muted-foreground px-2 mt-2">
-          💡 Right-click any list to rename or delete
-        </p>
       </div>
       
       <div className="mt-auto p-4 border-t border-border">
