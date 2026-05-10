@@ -1,60 +1,56 @@
 import { useParams } from "wouter";
 import { Sidebar } from "@/components/Sidebar";
 import { useStocks } from "@/hooks/use-stocks";
-import { useListItems, useLists } from "@/hooks/use-lists";
+import {
+  useListItems,
+  useLists,
+  useClearListItems,
+} from "@/hooks/use-lists";
+
 import { StockTable } from "@/components/StockTable";
 import { AddStockDialog } from "@/components/AddStockDialog";
+
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Menu } from "lucide-react";
+
+import {
+  Search,
+  Menu,
+  Trash2,
+} from "lucide-react";
+
 import { useState, useMemo } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { api } from "@shared/routes";
+
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 export default function Dashboard() {
   const params = useParams<{ id?: string }>();
-  const listId = params.id ? parseInt(params.id) : undefined;
+
+  const listId = params.id
+    ? parseInt(params.id)
+    : undefined;
 
   const [search, setSearch] = useState("");
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const queryClient = useQueryClient();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] =
+    useState(false);
 
-  // ✅ Delete all stocks from current list
-  const deleteAllMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`/api/lists/${listId}/items/all`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete all stocks");
-      }
-
-      return response;
-    },
-
-    onSuccess: async () => {
-      // ✅ Correct query key
-      await queryClient.invalidateQueries({
-        queryKey: [api.lists.getItems.path, listId],
-      });
-
-      await queryClient.refetchQueries({
-        queryKey: [api.lists.getItems.path, listId],
-      });
-
-      // Optional refresh
-      await queryClient.invalidateQueries({
-        queryKey: [api.lists.list.path],
-      });
-    },
-  });
+  // ✅ NEW HOOK
+  const clearListItems = useClearListItems(
+    listId || 0
+  );
 
   // Determine what to fetch
-  const { data: allStocks, isLoading: loadingAll } = useStocks();
+  const {
+    data: allStocks,
+    isLoading: loadingAll,
+  } = useStocks();
 
   const {
     data: listItems,
@@ -67,23 +63,32 @@ export default function Dashboard() {
     ? lists?.find((l) => l.id === listId)
     : null;
 
-  const currentStocks = listId ? listItems : allStocks;
+  const currentStocks = listId
+    ? listItems
+    : allStocks;
 
-  const isLoading = listId ? loadingList : loadingAll;
+  const isLoading = listId
+    ? loadingList
+    : loadingAll;
 
-  // Client-side search filtering
+  // Search filter
   const filteredStocks = useMemo(() => {
     if (!currentStocks) return [];
 
     if (!search) return currentStocks;
 
-    const lowerSearch = search.toLowerCase();
+    const lowerSearch =
+      search.toLowerCase();
 
     return currentStocks.filter(
       (s) =>
-        s.symbol.toLowerCase().includes(lowerSearch) ||
+        s.symbol
+          .toLowerCase()
+          .includes(lowerSearch) ||
         (s.name &&
-          s.name.toLowerCase().includes(lowerSearch))
+          s.name
+            .toLowerCase()
+            .includes(lowerSearch))
     );
   }, [currentStocks, search]);
 
@@ -96,23 +101,33 @@ export default function Dashboard() {
       </div>
 
       <main className="flex-1 md:ml-64 p-4 md:p-8">
+
         <div className="max-w-6xl mx-auto space-y-6 md:space-y-8 animate-in">
 
           {/* Mobile Header */}
           <div className="flex md:hidden items-center justify-between mb-4">
+
             <Sheet
               open={isMobileMenuOpen}
               onOpenChange={setIsMobileMenuOpen}
             >
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                >
                   <Menu className="h-6 w-6" />
                 </Button>
               </SheetTrigger>
 
-              <SheetContent side="left" className="p-0 w-64">
+              <SheetContent
+                side="left"
+                className="p-0 w-64"
+              >
                 <Sidebar
-                  onClose={() => setIsMobileMenuOpen(false)}
+                  onClose={() =>
+                    setIsMobileMenuOpen(false)
+                  }
                 />
               </SheetContent>
             </Sheet>
@@ -129,21 +144,29 @@ export default function Dashboard() {
 
             <div>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+
                 {activeList
                   ? activeList.name
                   : "All Stocks"}
+
               </h1>
 
               <p className="text-sm md:text-base text-muted-foreground mt-1">
+
                 {activeList
                   ? activeList.description ||
                     "Manage your curated list of stocks"
                   : "Overview of all tracked instruments"}
+
               </p>
             </div>
 
             <div className="flex items-center gap-3 w-full md:w-auto">
-              {!listId && <AddStockDialog />}
+
+              {!listId && (
+                <AddStockDialog />
+              )}
+
             </div>
           </div>
 
@@ -152,6 +175,7 @@ export default function Dashboard() {
 
             {/* Search */}
             <div className="relative flex-1 max-w-full md:max-w-md">
+
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 
               <Input
@@ -171,25 +195,31 @@ export default function Dashboard() {
                 {filteredStocks.length} Results
               </div>
 
-              {/* Delete All Button */}
+              {/* ✅ CLEAR LIST BUTTON */}
               {listId && (
                 <Button
                   variant="destructive"
                   size="sm"
-                  disabled={deleteAllMutation.isPending}
+                  disabled={
+                    clearListItems.isPending
+                  }
                   onClick={() => {
-                    const confirmed = confirm(
-                      "Delete all stocks from this list?"
-                    );
+
+                    const confirmed =
+                      confirm(
+                        `Clear all ${filteredStocks.length} stocks from this list?`
+                      );
 
                     if (confirmed) {
-                      deleteAllMutation.mutate();
+                      clearListItems.mutate();
                     }
                   }}
                 >
-                  {deleteAllMutation.isPending
-                    ? "Deleting..."
-                    : "Delete All"}
+                  <Trash2 className="h-4 w-4 mr-2" />
+
+                  {clearListItems.isPending
+                    ? "Clearing..."
+                    : "Clear List"}
                 </Button>
               )}
             </div>
@@ -199,20 +229,27 @@ export default function Dashboard() {
           <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
 
             {isLoading ? (
+
               <div className="space-y-4">
+
                 {[1, 2, 3, 4, 5].map((i) => (
                   <Skeleton
                     key={i}
                     className="h-12 w-full bg-card/50"
                   />
                 ))}
+
               </div>
+
             ) : (
+
               <StockTable
                 stocks={filteredStocks}
                 currentListId={listId}
               />
+
             )}
+
           </div>
         </div>
       </main>
