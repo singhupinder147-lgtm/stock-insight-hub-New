@@ -1,3 +1,4 @@
+
 import { db } from "./db";
 import {
   stocks, lists, listItems, fundamentals,
@@ -15,6 +16,7 @@ export interface IStorage {
   bulkCreateStocks(symbols: string[]): Promise<number>;
   deleteStock(id: number): Promise<void>;
   searchStocks(query: string): Promise<Stock[]>;
+  updateStockPrice(id: number, data: Partial<Stock>): Promise<Stock>;
 
   // Lists
   getLists(): Promise<(StockList & { itemCount: number })[]>;
@@ -26,6 +28,8 @@ export interface IStorage {
   getListItems(listId: number): Promise<Stock[]>;
   addListItem(item: InsertListItem): Promise<ListItem>;
   removeListItem(listId: number, stockId: number): Promise<void>;
+
+  clearAllListItems(): Promise<void>;
   clearListItems(listId: number): Promise<void>;
 
   // Fundamentals
@@ -56,10 +60,21 @@ export class DatabaseStorage implements IStorage {
 
   async bulkCreateStocks(symbols: string[]): Promise<number> {
     if (symbols.length === 0) return 0;
+    
+    // Deduplicate and prepare values
     const uniqueSymbols = [...new Set(symbols.map(s => s.trim().toUpperCase()))];
+    
+    let count = 0;
+    // We do this in a loop or with ON CONFLICT DO NOTHING if supported, 
+    // but Drizzle/PG simple insert with ignore is safer done via upsert or check
+    // For simplicity, we'll try to insert one by one or filter existing.
+    // Let's use ON CONFLICT DO NOTHING equivalent
+    
     await db.insert(stocks)
       .values(uniqueSymbols.map(s => ({ symbol: s, name: s })))
       .onConflictDoNothing({ target: stocks.symbol });
+      
+    // Count how many are in the list now - easier than tracking insert count directly with onConflict
     return uniqueSymbols.length;
   }
 
@@ -75,16 +90,28 @@ export class DatabaseStorage implements IStorage {
       .limit(10);
   }
 
+  async updateStockPrice(id: number, data: Partial<Stock>): Promise<Stock> {
+    const [updated] = await db.update(stocks)
+      .set(data)
+      .where(eq(stocks.id, id))
+      .returning();
+    return updated;
+  }
+
   // Lists
   async getLists(): Promise<(StockList & { itemCount: number })[]> {
+    // This requires a join or subquery to count items
     const allLists = await db.select().from(lists);
     const result = [];
+    
     for (const list of allLists) {
       const [count] = await db.select({ count: sql<number>`count(*)` })
         .from(listItems)
         .where(eq(listItems.listId, list.id));
+      
       result.push({ ...list, itemCount: Number(count.count) });
     }
+    
     return result;
   }
 
@@ -105,21 +132,26 @@ export class DatabaseStorage implements IStorage {
 
   // List Items
   async getListItems(listId: number): Promise<Stock[]> {
+    // Join stocks and listItems
     const rows = await db.select({ stock: stocks })
       .from(listItems)
       .innerJoin(stocks, eq(listItems.stockId, stocks.id))
       .where(eq(listItems.listId, listId));
+      
     return rows.map(r => r.stock);
   }
 
   async addListItem(item: InsertListItem): Promise<ListItem> {
+    // Check if exists
     const [existing] = await db.select()
       .from(listItems)
       .where(and(
         eq(listItems.listId, item.listId),
         eq(listItems.stockId, item.stockId)
       ));
+      
     if (existing) return existing;
+    
     const [newItem] = await db.insert(listItems).values(item).returning();
     return newItem;
   }
@@ -131,8 +163,6 @@ export class DatabaseStorage implements IStorage {
         eq(listItems.stockId, stockId)
       ));
   }
-
-  // ✅ NEW - Clear all stocks from a list
 
   async clearAllListItems(): Promise<void> {
     const allLists = await db.select({ id: lists.id }).from(lists);
@@ -148,42 +178,17 @@ export class DatabaseStorage implements IStorage {
   // Fundamentals
   async getFundamentals(stockId: number): Promise<Fundamentals | undefined> {
     const [fund] = await db.select().from(fundamentals).where(eq(fundamentals.stockId, stockId));
-    if (fund) return fund;
-
-    const [stock] = await db.select().from(stocks).where(eq(stocks.id, stockId));
-    if (!stock) return undefined;
-
-    const mockFund: Partial<Fundamentals> & { stockId: number } = {
-      stockId,
-      shareholding: {
-        promoter: 40 + (stockId % 20) + Math.random() * 5,
-        fii: 10 + (stockId % 15) + Math.random() * 5,
-        dii: 10 + (stockId % 10) + Math.random() * 5,
-        public: 5 + (stockId % 5) + Math.random() * 5
-      },
-      quarterlyResults: [
-        { quarter: "Dec 2023", sales: 1000 + (stockId * 10), profit: 100 + stockId, opm: 10 + (stockId % 5), eps: 1.2 + (stockId / 100) },
-        { quarter: "Mar 2024", sales: 1100 + (stockId * 10), profit: 110 + stockId, opm: 10 + (stockId % 5), eps: 1.3 + (stockId / 100) },
-        { quarter: "Jun 2024", sales: 1050 + (stockId * 10), profit: 95 + stockId, opm: 9 + (stockId % 5), eps: 1.1 + (stockId / 100) },
-        { quarter: "Sep 2024", sales: 1200 + (stockId * 10), profit: 130 + stockId, opm: 11 + (stockId % 5), eps: 1.5 + (stockId / 100) },
-        { quarter: "Dec 2024", sales: 1300 + (stockId * 10), profit: 150 + stockId, opm: 12 + (stockId % 5), eps: 1.8 + (stockId / 100) },
-        { quarter: "Mar 2025", sales: 1400 + (stockId * 10), profit: 170 + stockId, opm: 12 + (stockId % 5), eps: 2.0 + (stockId / 100) },
-      ],
-      profitLoss: [
-        { year: "2021", sales: 4000 + (stockId * 40), netProfit: 400 + (stockId * 4) },
-        { year: "2022", sales: 4500 + (stockId * 45), netProfit: 450 + (stockId * 4) },
-        { year: "2023", sales: 5000 + (stockId * 50), netProfit: 550 + (stockId * 5) },
-        { year: "2024", sales: 6000 + (stockId * 60), netProfit: 700 + (stockId * 6) },
-        { year: "2025 (Est)", sales: 7000 + (stockId * 70), netProfit: 850 + (stockId * 7) },
-        { year: "2026 (Proj)", sales: 8500 + (stockId * 85), netProfit: 1000 + (stockId * 8) },
-      ]
-    };
-
-    return await this.createFundamentals(mockFund);
+    return fund;
   }
 
   async createFundamentals(data: Partial<Fundamentals> & { stockId: number }): Promise<Fundamentals> {
-    const [fund] = await db.insert(fundamentals).values(data).returning();
+    const [fund] = await db.insert(fundamentals)
+      .values(data)
+      .onConflictDoUpdate({
+        target: fundamentals.stockId,
+        set: { ...data, updatedAt: new Date() }
+      })
+      .returning();
     return fund;
   }
 }
