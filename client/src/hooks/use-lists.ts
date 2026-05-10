@@ -211,3 +211,38 @@ export function useRemoveListItem(listId: number) {
     },
   });
 }
+
+// ✅ Clear all stocks from current list
+export function useClearListItems(listId: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch(
+        `/api/lists/${listId}/items/all`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error("Failed to clear list items");
+      }
+    },
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [api.lists.getItems.path, listId],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: [api.lists.list.path],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["/api/stocks"],
+      });
+    },
+  });
+}
