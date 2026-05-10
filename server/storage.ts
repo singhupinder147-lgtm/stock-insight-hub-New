@@ -133,9 +133,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ✅ NEW - Clear all stocks from a list
+
+  async clearAllListItems(): Promise<void> {
+    const allLists = await db.select({ id: lists.id }).from(lists);
+    for (const list of allLists) {
+      await db.delete(listItems).where(eq(listItems.listId, list.id));
+    }
+  }
+
   async clearListItems(listId: number): Promise<void> {
-    await db.delete(listItems)
-      .where(eq(listItems.listId, listId));
+    await db.delete(listItems).where(eq(listItems.listId, listId));
   }
 
   // Fundamentals
