@@ -158,7 +158,11 @@ export async function registerRoutes(
 
     res.json(items);
   });
-
+app.delete(api.lists.clearAllItems.path, async (req, res) => {
+    console.log('Clearing all list items');
+    await storage.clearAllListItems();
+    res.status(204).send();
+  });
   app.post(api.lists.addItem.path, async (req, res) => {
     try {
       const listId = Number(req.params.id);
@@ -198,27 +202,13 @@ export async function registerRoutes(
   });
 
   // ✅ CLEAR ALL STOCKS FROM ONE LIST
-  app.delete("/api/lists/:id/items/all", async (req, res) => {
-    try {
-      const listId = Number(req.params.id);
-
-      console.log("CLEARING LIST:", listId);
-
-      await storage.clearListItems(listId);
-
-      console.log("LIST CLEARED");
-
-      res.status(204).send();
-
-    } catch (err) {
-
-      console.error("CLEAR LIST ERROR:", err);
-
-      res.status(500).json({
-        message: "Failed to clear list items",
-      });
-    }
+  app.delete(api.lists.clearItems.path, async (req, res) => {
+    const listId = Number(req.params.id);
+    console.log(`Clearing items for list ${listId}`);
+    await storage.clearListItems(listId);
+    res.status(204).send();
   });
+
 
   // === NEWS ===
 
