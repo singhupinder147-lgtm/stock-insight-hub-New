@@ -64,6 +64,12 @@ export async function registerRoutes(
     res.json(lists);
   });
 
+   app.delete(api.lists.clearAllItems.path, async (req, res) => {
+    console.log('Clearing all list items');
+    await storage.clearAllListItems();
+    res.status(204).send();
+  });
+
   app.post(api.lists.create.path, async (req, res) => {
     try {
       const input = api.lists.create.input.parse(req.body);
@@ -137,8 +143,9 @@ export async function registerRoutes(
   });
 
   // ✅ Clear all stocks from a list
-  app.delete("/api/lists/:id/items/all", async (req, res) => {
+app.delete(api.lists.clearItems.path, async (req, res) => {
     const listId = Number(req.params.id);
+    console.log(`Clearing items for list ${listId}`);
     await storage.clearListItems(listId);
     res.status(204).send();
   });
