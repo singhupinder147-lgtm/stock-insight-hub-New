@@ -95,3 +95,32 @@ export function useRemoveListItem(listId: number) {
     },
   });
 }
+export function useClearAllListItems() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch(api.lists.clearAllItems.path, { method: "DELETE", credentials: "include" });
+      if (!res.ok) throw new Error("Failed to clear all list items");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.lists.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.lists.getItems.path] });
+      queryClient.resetQueries({ queryKey: [api.lists.getItems.path] });
+    },
+  });
+}
+
+export function useClearListItems(listId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const url = buildUrl(api.lists.clearItems.path, { id: listId });
+      const res = await fetch(url, { method: "DELETE", credentials: "include" });
+      if (!res.ok) throw new Error("Failed to clear list items");
+    },
+    onSuccess: () => {
+      queryClient.resetQueries({ queryKey: [api.lists.getItems.path, listId] });
+      queryClient.invalidateQueries({ queryKey: [api.lists.list.path] });
+    },
+  });
+}
