@@ -6,47 +6,61 @@ import { StockTable } from "@/components/StockTable";
 import { AddStockDialog } from "@/components/AddStockDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Menu } from "lucide-react";
+import { Search, Menu, Trash2 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+
 export default function Dashboard() {
   const params = useParams<{ id?: string }>();
   const listId = params.id ? parseInt(params.id) : undefined;
-  
+
   const [search, setSearch] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Determine what to fetch
   const { data: allStocks, isLoading: loadingAll } = useStocks();
   const { data: listItems, isLoading: loadingList } = useListItems(listId || 0);
   const { data: lists } = useLists();
 
-  const activeList = listId ? lists?.find(l => l.id === listId) : null;
+  const activeList = listId ? lists?.find((l) => l.id === listId) : null;
   const currentStocks = listId ? listItems : allStocks;
   const isLoading = listId ? loadingList : loadingAll;
 
-  // Client-side search filtering
   const filteredStocks = useMemo(() => {
     if (!currentStocks) return [];
     if (!search) return currentStocks;
+
     const lowerSearch = search.toLowerCase();
-    return currentStocks.filter(s => 
-      s.symbol.toLowerCase().includes(lowerSearch) || 
-      (s.name && s.name.toLowerCase().includes(lowerSearch))
+
+    return currentStocks.filter(
+      (s) =>
+        s.symbol.toLowerCase().includes(lowerSearch) ||
+        (s.name && s.name.toLowerCase().includes(lowerSearch))
     );
   }, [currentStocks, search]);
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
+      {/* Sidebar */}
       <div className="hidden md:block fixed left-0 top-0 h-screen z-20">
         <Sidebar />
       </div>
-      
+
       <main className="flex-1 md:ml-64 p-4 md:p-8">
         <div className="max-w-6xl mx-auto space-y-6 md:space-y-8 animate-in">
-          
+
           {/* Mobile Header */}
           <div className="flex md:hidden items-center justify-between mb-4">
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
@@ -59,41 +73,83 @@ export default function Dashboard() {
                 <Sidebar onClose={() => setIsMobileMenuOpen(false)} />
               </SheetContent>
             </Sheet>
+
             <h1 className="font-bold text-lg">TradeVault</h1>
-            <div className="w-10" /> {/* Spacer */}
+            <div className="w-10" />
           </div>
 
-          {/* Header Section */}
+          {/* Header */}
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
                 {activeList ? activeList.name : "All Stocks"}
               </h1>
               <p className="text-sm md:text-base text-muted-foreground mt-1">
-                {activeList 
+                {activeList
                   ? activeList.description || "Manage your curated list of stocks"
                   : "Overview of all tracked instruments"}
               </p>
             </div>
+
             <div className="flex items-center gap-3 w-full md:w-auto">
               {!listId && <AddStockDialog />}
             </div>
           </div>
 
-          {/* Controls Bar */}
+          {/* Controls */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-card p-3 md:p-4 rounded-lg border border-border shadow-sm">
             <div className="relative flex-1 max-w-full md:max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search symbol or name..." 
+              <Input
+                placeholder="Search symbol or name..."
                 className="pl-9 bg-background border-border"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
+
             <div className="text-sm text-muted-foreground sm:ml-auto">
               {filteredStocks.length} Results
             </div>
+
+            {listId && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 text-muted-foreground border-border hover:text-destructive hover:border-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Clear List
+                  </Button>
+                </AlertDialogTrigger>
+
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Clear all stocks from this list?
+                    </AlertDialogTitle>
+
+                    <AlertDialogDescription>
+                      This will remove all {currentStocks?.length || 0} stocks
+                      from "{activeList?.name}". Stocks will remain in your
+                      master list.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => console.log("clear list")}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Clear List
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
 
           {/* Content */}
@@ -105,7 +161,10 @@ export default function Dashboard() {
                 ))}
               </div>
             ) : (
-              <StockTable stocks={filteredStocks} currentListId={listId} />
+              <StockTable
+                stocks={filteredStocks}
+                currentListId={listId}
+              />
             )}
           </div>
         </div>
