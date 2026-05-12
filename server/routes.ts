@@ -9,17 +9,21 @@ import { eq } from "drizzle-orm";
 
 /* -------------------------
    SAFE HELPERS
---------------------------*/
+-------------------------- */
 
-const toNumber = (val: any) => {
+const toNumber = (val: unknown): number => {
   const n = Number(val);
-  if (isNaN(n)) throw new Error("Invalid ID");
+
+  if (isNaN(n)) {
+    throw new Error("Invalid ID");
+  }
+
   return n;
 };
 
 /* -------------------------
    ROUTES
---------------------------*/
+-------------------------- */
 
 export async function registerRoutes(
   httpServer: Server,
@@ -28,26 +32,34 @@ export async function registerRoutes(
 
   /* =========================
       STOCKS
-  ==========================*/
+  ========================== */
 
-  app.get(api.stocks.list.path, async (req, res) => {
+  app.get(api.stocks.list.path, async (_req, res) => {
     try {
-      const stocks = await storage.getAllStocks();
-      res.json(stocks);
+      const allStocks = await storage.getAllStocks();
+      res.json(allStocks);
     } catch {
-      res.status(500).json({ message: "Failed to fetch stocks" });
+      res.status(500).json({
+        message: "Failed to fetch stocks",
+      });
     }
   });
 
   app.get(api.stocks.search.path, async (req, res) => {
     try {
       const query = req.query.query as string;
-      if (!query) return res.json([]);
 
-      const stocks = await storage.searchStocks(query);
-      res.json(stocks);
+      if (!query?.trim()) {
+        return res.json([]);
+      }
+
+      const result = await storage.searchStocks(query);
+
+      res.json(result);
     } catch {
-      res.status(500).json({ message: "Search failed" });
+      res.status(500).json({
+        message: "Search failed",
+      });
     }
   });
 
@@ -56,125 +68,202 @@ export async function registerRoutes(
       const id = toNumber(req.params.id);
 
       const stock = await storage.getStock(id);
+
       if (!stock) {
-        return res.status(404).json({ message: "Stock not found" });
+        return res.status(404).json({
+          message: "Stock not found",
+        });
       }
 
-      const fund = await storage.getFundamentals(id);
-      res.json({ ...stock, fundamentals: fund || null });
+      const fundamentals = await storage.getFundamentals(id);
+
+      res.json({
+        ...stock,
+        fundamentals: fundamentals || null,
+      });
     } catch {
-      res.status(400).json({ message: "Invalid stock id" });
+      res.status(400).json({
+        message: "Invalid stock id",
+      });
     }
   });
 
   app.post(api.stocks.bulkCreate.path, async (req, res) => {
     try {
-      const { symbols } = api.stocks.bulkCreate.input.parse(req.body);
-      const count = await storage.bulkCreateStocks(symbols);
+      const { symbols } =
+        api.stocks.bulkCreate.input.parse(req.body);
+
+      const count =
+        await storage.bulkCreateStocks(symbols);
+
       res.status(201).json({ count });
+
     } catch (err) {
+
       if (err instanceof z.ZodError) {
         return res.status(400).json({
           message: err.errors[0].message,
           field: err.errors[0].path.join("."),
         });
       }
-      res.status(500).json({ message: "Bulk create failed" });
+
+      res.status(500).json({
+        message: "Bulk create failed",
+      });
     }
   });
 
   app.delete(api.stocks.delete.path, async (req, res) => {
     try {
       const id = toNumber(req.params.id);
+
       await storage.deleteStock(id);
+
       res.status(204).send();
+
     } catch {
-      res.status(400).json({ message: "Invalid stock id" });
+      res.status(400).json({
+        message: "Invalid stock id",
+      });
     }
   });
 
   /* =========================
       LISTS
-  ==========================*/
+  ========================== */
 
-  app.get(api.lists.list.path, async (req, res) => {
+  app.get(api.lists.list.path, async (_req, res) => {
     try {
       const data = await storage.getLists();
+
       res.json(data);
+
     } catch {
-      res.status(500).json({ message: "Failed to fetch lists" });
+      res.status(500).json({
+        message: "Failed to fetch lists",
+      });
     }
   });
 
   app.post(api.lists.create.path, async (req, res) => {
     try {
-      const input = api.lists.create.input.parse(req.body);
-      const list = await storage.createList(input);
+      const input =
+        api.lists.create.input.parse(req.body);
+
+      const list =
+        await storage.createList(input);
+
       res.status(201).json(list);
+
     } catch (err) {
+
       if (err instanceof z.ZodError) {
         return res.status(400).json({
           message: err.errors[0].message,
           field: err.errors[0].path.join("."),
         });
       }
-      res.status(500).json({ message: "Create list failed" });
+
+      res.status(500).json({
+        message: "Create list failed",
+      });
+    }
+  });
+
+  /* ===================================================
+     IMPORTANT:
+     SPECIFIC ROUTE MUST COME BEFORE :id ROUTE
+  ==================================================== */
+
+  app.delete(api.lists.clearAllItems.path, async (_req, res) => {
+    try {
+      await storage.clearAllListItems();
+
+      res.status(204).send();
+
+    } catch {
+      res.status(500).json({
+        message: "Clear all failed",
+      });
     }
   });
 
   app.delete(api.lists.delete.path, async (req, res) => {
     try {
       const id = toNumber(req.params.id);
+
       await storage.deleteList(id);
+
       res.status(204).send();
+
     } catch {
-      res.status(400).json({ message: "Invalid list id" });
+      res.status(400).json({
+        message: "Invalid list id",
+      });
     }
   });
 
   app.patch("/api/lists/:id", async (req, res) => {
     try {
       const id = toNumber(req.params.id);
+
       const { name } = req.body;
 
       if (!name?.trim()) {
-        return res.status(400).json({ message: "Name is required" });
+        return res.status(400).json({
+          message: "Name is required",
+        });
       }
 
       const [updated] = await db
         .update(lists)
-        .set({ name: name.trim() })
+        .set({
+          name: name.trim(),
+        })
         .where(eq(lists.id, id))
         .returning();
 
       if (!updated) {
-        return res.status(404).json({ message: "List not found" });
+        return res.status(404).json({
+          message: "List not found",
+        });
       }
 
       res.json(updated);
+
     } catch {
-      res.status(500).json({ message: "Rename failed" });
+      res.status(500).json({
+        message: "Rename failed",
+      });
     }
   });
 
   /* =========================
       LIST ITEMS
-  ==========================*/
+  ========================== */
 
   app.get(api.lists.getItems.path, async (req, res) => {
     try {
       const id = toNumber(req.params.id);
-      const items = await storage.getListItems(id);
+
+      const items =
+        await storage.getListItems(id);
+
       res.json(items);
+
     } catch {
-      res.status(400).json({ message: "Invalid list id" });
+      res.status(400).json({
+        message: "Invalid list id",
+      });
     }
   });
 
   app.post(api.lists.addItem.path, async (req, res) => {
     try {
       const listId = toNumber(req.params.id);
-      const { stockId } = api.lists.addItem.input.parse(req.body);
+
+      const { stockId } =
+        api.lists.addItem.input.parse(req.body);
 
       const item = await storage.addListItem({
         listId,
@@ -182,26 +271,40 @@ export async function registerRoutes(
       });
 
       res.status(201).json(item);
+
     } catch (err) {
+
       if (err instanceof z.ZodError) {
         return res.status(400).json({
           message: err.errors[0].message,
           field: err.errors[0].path.join("."),
         });
       }
-      res.status(500).json({ message: "Add item failed" });
+
+      res.status(500).json({
+        message: "Add item failed",
+      });
     }
   });
 
   app.delete(api.lists.removeItem.path, async (req, res) => {
     try {
       const listId = toNumber(req.params.id);
-      const stockId = toNumber(req.params.stockId);
 
-      await storage.removeListItem(listId, stockId);
+      const stockId =
+        toNumber(req.params.stockId);
+
+      await storage.removeListItem(
+        listId,
+        stockId
+      );
+
       res.status(204).send();
+
     } catch {
-      res.status(400).json({ message: "Invalid parameters" });
+      res.status(400).json({
+        message: "Invalid parameters",
+      });
     }
   });
 
@@ -210,26 +313,21 @@ export async function registerRoutes(
       const listId = toNumber(req.params.id);
 
       await storage.clearListItems(listId);
-      res.status(204).send();
-    } catch {
-      res.status(400).json({ message: "Invalid list id" });
-    }
-  });
 
-  app.delete(api.lists.clearAllItems.path, async (req, res) => {
-    try {
-      await storage.clearAllListItems();
       res.status(204).send();
+
     } catch {
-      res.status(500).json({ message: "Clear all failed" });
+      res.status(400).json({
+        message: "Invalid list id",
+      });
     }
   });
 
   /* =========================
       NEWS
-  ==========================*/
+  ========================== */
 
-  app.get("/api/news", async (req, res) => {
+  app.get("/api/news", async (_req, res) => {
     try {
       res.json([
         {
@@ -247,29 +345,34 @@ export async function registerRoutes(
           url: "#",
         },
       ]);
+
     } catch {
-      res.status(500).json({ message: "Failed to fetch news" });
+      res.status(500).json({
+        message: "Failed to fetch news",
+      });
     }
   });
 
   /* =========================
-      SEED (FIXED - NO DUPLICATES)
-  ==========================*/
+      SEED DATABASE
+  ========================== */
 
   await seedDatabase();
 
   return httpServer;
 }
 
-/* =========================
-   SEED FUNCTION (CLEANED)
-==========================*/
+/* -------------------------
+   SEED DATABASE
+-------------------------- */
 
 async function seedDatabase() {
-  const existingStocks = await storage.getAllStocks();
+
+  const existingStocks =
+    await storage.getAllStocks();
 
   if (existingStocks.length > 0) {
-    return; // prevent duplicate seeding (IMPORTANT FIX)
+    return;
   }
 
   console.log("Seeding database...");
@@ -299,12 +402,17 @@ async function seedDatabase() {
     description: "Short term opportunities",
   });
 
-  const stocks = await storage.getAllStocks();
+  const allStocks =
+    await storage.getAllStocks();
 
-  const reliance = stocks.find((s) => s.symbol === "RELIANCE");
-  const tcs = stocks.find((s) => s.symbol === "TCS");
+  const reliance =
+    allStocks.find((s) => s.symbol === "RELIANCE");
+
+  const tcs =
+    allStocks.find((s) => s.symbol === "TCS");
 
   if (reliance && tcs) {
+
     await storage.addListItem({
       listId: favorites.id,
       stockId: reliance.id,
